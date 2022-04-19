@@ -27,7 +27,7 @@ dontneed = [
     "(", ")", "/", "-", ".", "&", "[", "]", ":", "|",
     "music video", "videoclip", "prod", "ost",
     "official", "radio edit",
-    "lyrics", "dalszöveg",
+    "lyrics", "dalszöveg", "dirty", "explicit",
     " hd", " 4k",
     " feat", " by", " ft"
 ]
