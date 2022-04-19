@@ -25,7 +25,7 @@ def similar(a, b):
 
 dontneed = [
     "(", ")", "/", "-", ".", "&", "[", "]", ":", "|",
-    "music video", "videoclip", "prod", "ost",
+    "music video", "videoclip", "prod", "ost", "version", "album",
     "official", "radio edit",
     "lyrics", "dalszöveg", "dirty", "explicit",
     " hd", " 4k",
@@ -245,7 +245,11 @@ def handle_yt(url):
                 video = result['entries'][i]
                 res = parse_video(video)
                 if(res == None):
-                    failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+                    if(video == None):
+                        prnt("Video not found at index " + str(i))
+                        failfile.write("fatalerror:" + str(i) + "\n")
+                    else:
+                        failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
                 else:
                     if(args.no_shazam == False):
                         shazam = loop.run_until_complete(shazamit("https://youtu.be/" + video['id']))
