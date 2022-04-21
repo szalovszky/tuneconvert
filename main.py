@@ -2,6 +2,7 @@ import sys
 import time
 import logging
 import argparse
+import os
 
 from difflib import SequenceMatcher
 import re
@@ -14,7 +15,7 @@ from shazamio import Shazam
 parser = argparse.ArgumentParser(description="yt2deezer",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument("-s", "--no-shazam", default=False, help="Use Shazam as a 3rd-party verification source (only visual, does not affect actual searching)", action='store_true')
+parser.add_argument("-s", "--no-shazam", default=False, help="Use Shazam as a 3rd-party fallback source", action='store_true')
 parser.add_argument("URL", help="YouTube Playlist/Video")
 
 args = parser.parse_args()
@@ -23,14 +24,7 @@ config = vars(args)
 def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
-dontneed = [
-    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|",
-    "music video", "videoclip", "prod", "ost", "version", "album",
-    "official", "radio edit",
-    "lyrics", "dalszöveg", "dirty", "explicit",
-    " hd", " 4k",
-    " feat", " by", " ft"
-]
+similarity_threshold = 0.275
 
 logging.basicConfig(filename='latest.log', filemode='w', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
@@ -55,15 +49,15 @@ class normallogger:
             self.info(msg)
 
     def info(self, msg):
-        print(msg)
+        prnt(msg)
 
     def warning(self, msg):
-        print(msg)
+        prnt(msg)
 
     def error(self, msg):
         if(("removed" in msg) or ("unavailable" in msg)):
             unavailablefile.write(msg + "\n")
-        print(msg)
+        prnt(msg)
 
 class dllogger:
     def debug(self, msg):
@@ -78,10 +72,10 @@ class dllogger:
         pass
 
     def warning(self, msg):
-        print(msg)
+        prnt(msg)
 
     def error(self, msg):
-        print(msg)
+        prnt(msg)
 
 def my_hook(d):
     if d['status'] == 'downloading':
@@ -91,6 +85,8 @@ def my_hook(d):
         print(filename)
 
 async def shazamit(url):
+    prnt("Please wait, this might take a while...")
+    #prnt(f"Extracting audio of {url}...")
     ydl_opts = {
         'logger': dllogger(),
         'format': 'bestaudio/best',
@@ -113,14 +109,30 @@ async def shazamit(url):
             error_code = ytdl.download(url)
         except:
             return None
-        prnt(f"Shazaming {url}...")
+        #prnt(f"Shazaming {url}...")
         try:
             shazam = Shazam()
             out = await shazam.recognize_song('audio.ogg')
-            return (out['track']['subtitle'], out['track']['title'])
+            if os.path.exists("audio.ogg"):
+                os.remove("audio.ogg")
+            #return (out['track']['subtitle'], out['track']['title'])
+            return out['track']['isrc']
         except:
             return None
 loop = asyncio.get_event_loop()
+
+dontneed = [
+    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"',
+    "music video", "videoclip", "videoklip", "prod", "version", "album",
+    "official", "hivatalos", "radio edit",
+    "lyrics", "lyric", "dalszöveg", "dirty", "explicit",
+]
+
+dontneed_wholeword = [
+    "video", "ost",
+    "feat", "by", "ft", "nightcore",
+    "hd", "4k",
+]
 
 def filter_data(artist, title):
     # Remove unnecessary information between "()"s and "[]"s (ex. Official Music Video)
@@ -131,10 +143,25 @@ def filter_data(artist, title):
     artist = artist.replace(", ", " ").replace(" x ", " ").replace(";", " ")
     title = title.replace(", ", " ").replace(" x ", " ")
 
-    # Apply advanced filtering
+    # Apply advanced filtering by replacing every instance of filtered words
     for item in dontneed:
         artist = artist.replace(item, "")
         title = title.replace(item, "")
+
+    # Apply advanced filtering by replacing full word matches of filtered words
+    x = artist.split()
+    for i in range(len(x)):
+        for word in dontneed_wholeword:
+            if(word.lower() == (x[i]).lower()):
+                x[i] = ""
+    artist = " ".join(x)
+
+    x = title.split()
+    for i in range(len(x)):
+        for word in dontneed_wholeword:
+            if(word.lower() == (x[i]).lower()):
+                x[i] = ""
+    title = " ".join(x)
 
     # Cut out unnecessary spaces from the Artist field
     artist = " ".join(artist.split())
@@ -173,12 +200,12 @@ def parse_video(video):
     
     return filter_data(artist, title)
 
-deezer = deezer.Client()
+deezerc = deezer.Client()
 def converto_deezer(query):
     success = False
     while(not success):
         try:
-            res = deezer.search(query)
+            res = deezerc.search(query)
             if(len(res) > 0):
                 res = res[0].as_dict()
             else:
@@ -188,52 +215,130 @@ def converto_deezer(query):
             time.sleep(1)
     return res
 
+def deezer_isrc(isrc):
+    success = False
+    while(not success):
+        try:
+            res = deezerc.request("GET", "track/isrc:" + isrc, resource_type=deezer.Track)
+            res = res.as_dict()
+            success = True
+        except Exception as e:
+            time.sleep(1)
+    return res
+
+def deezer_album(query):
+    success = False
+    while(not success):
+        try:
+            res = deezerc.request("GET", "search/album?q=" + query, resource_type=deezer.Album)
+            if(len(res) > 0):
+                res = res[0].as_dict()
+                if(res['record_type'] == "single"):
+                    res = deezerc.request("GET", res['tracklist'].replace("https://api.deezer.com/", ""))
+                    if(len(res) > 0):
+                        res = res[0].as_dict()
+                    else:
+                        res = None
+                else:
+                    res = None
+            else:
+                res = None
+            success = True
+        except Exception as e:
+            prnt(e)
+            time.sleep(1)
+    return res
+
 total = 1
 success = 0
 not_found = 0
-invalid = 0
 
-def out(res, deezer_result, shazam, video):
-    global success, not_found, invalid
-    if(deezer_result != None):
-        if(shazam != None):
-            compare1 = similar(filter_data(shazam[0], shazam[1]).lower(), res.lower())
-        else:
-            compare1 = 0
-        compare2 = similar(filter_data(deezer_result['artist']['name'], deezer_result['title']).lower(), res.lower())
-        shazamed = False
-        if(compare1 >= 0.25):
-            shazamed = True
-            compare = ((compare1+compare2)/2)
-        else:
-            compare = compare2
-        final = "[" + str(round(compare*100, 2)) + "%" + ("S" if shazamed else "") + "] " + deezer_result['artist']['name'] + " - " + deezer_result['title']
-        if(compare < 0.25):
-            final = "[ERROR] " + final + " but it doesn't match searched song: " + res
-            invalid+=1
-            failfile.write("invalid:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-            outfile.write("https://youtu.be/" + video['id'] + "\n")
-        else:
-            final = "[SUCCESS] " + final + " from " + video['title']
-            success+=1
-            outfile.write(deezer_result['link'] + "\n")
-        prnt(final)
+src_names = {
+    0: "DeezerTrack",
+    1: "DeezerAlbum",
+    2: "Shazam"
+}
+
+def get_src_name(src):
+    if(src > (len(src_names)-1)):
+        return ""
     else:
-        prnt("[ERROR] Couldn't find " + res)
-        not_found+=1
-        failfile.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-        outfile.write("https://youtu.be/" + video['id'] + "\n")
+        return src_names[src]
+
+def out(res, deezer_result, src):
+    global success, not_found
+    deezersrc = filter_data(deezer_result['artist']['name'], deezer_result['title']).lower()
+    ressrc = res.lower()
+    compare = similar(deezersrc, ressrc)
+    final = "[" + str(round(compare*100, 2)) + "% - " + get_src_name(src) + "] " + deezer_result['artist']['name'] + " - " + deezer_result['title']
+    if(compare < similarity_threshold):
+        return None
+        final = "[ERROR] " + final + " but it doesn't match searched song: " + res
+    else:
+        final = "[SUCCESS] " + final
+        success += 1
+        outfile.write(deezer_result['link'] + "\n")
+        prnt(final)
+        return True
+
+def handle_res(video, i = 0):
+    global not_found
+    try:
+        res = parse_video(video)
+        if(res == None):
+            if(video == None):
+                prnt("Video not found at index " + str(i))
+                failfile.write("fatalerror:" + str(i) + "\n")
+            else:
+                failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+        else:
+            prnt("=== " + video['title'] + " ===")
+            src = 0
+            success = False
+            while(not success):
+                prnt("[INFO] Searching using " + get_src_name(src) + "...")
+                if(src == 0):
+                    deezer_result = converto_deezer(res)
+                    if(deezer_result != None):
+                        success = True
+                elif(src == 1):
+                    deezer_result = deezer_album(res)
+                    if(deezer_result != None):
+                        success = True
+                elif(src == 2):
+                    if(args.no_shazam == False):
+                        shazam = loop.run_until_complete(shazamit("https://youtu.be/" + video['id']))
+                        if(shazam != None):
+                            deezer_result = deezer_isrc(shazam)
+                            success = True
+                    else:
+                        prnt("Not using Shazam, because -s switch was used")
+                else:
+                    success = True
+                    prnt("[ERROR] Not found " + res)
+                    not_found += 1
+                    failfile.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+                    outfile.write("https://youtu.be/" + video['id'] + "\n")
+                    break
+                if(success):
+                    if(out(res, deezer_result, src) == None):
+                        success = False
+                if(not success):
+                    if(src < len(src_names)):
+                        prnt("[WARN] Couldn't find using " + get_src_name(src))
+                    src += 1
+    except Exception as e:
+        prnt("Handling error at index " + str(i))
+        prnt(e)
+        failfile.write("handleerror:" + str(i) + "\n")
 
 def handle_yt(url):
-    global success, not_found, invalid, total
+    global success, not_found, total
     global loop
     ydl = yt_dlp.YoutubeDL({"ignoreerrors": True, 'logger': normallogger(), 'progress_hooks': [my_hook],})
     with ydl:
         result = ydl.extract_info(url, download=False)
         prnt("Parsing data...")
-
-        if(args.no_shazam == True):
-            prnt("Not verifying using Shazam, because -s switch was used")
         
         if 'entries' in result:
             # This is a playlist or a list of videos
@@ -243,31 +348,12 @@ def handle_yt(url):
             # Loops entries to grab each video
             for i, item in enumerate(video):
                 video = result['entries'][i]
-                res = parse_video(video)
-                if(res == None):
-                    if(video == None):
-                        prnt("Video not found at index " + str(i))
-                        failfile.write("fatalerror:" + str(i) + "\n")
-                    else:
-                        failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-                else:
-                    if(args.no_shazam == False):
-                        shazam = loop.run_until_complete(shazamit("https://youtu.be/" + video['id']))
-                    else:
-                        shazam = None
-                    deezer_result = (converto_deezer(res))
-                    out(res, deezer_result, shazam, video)
+                handle_res(video, i)
         else:
             video = result
-            res = parse_video(video)
-            if(args.no_shazam == False):
-                shazam = loop.run_until_complete(shazamit("https://youtu.be/" + video['id']))
-            else:
-                shazam = None
-            deezer_result = (converto_deezer(res))
-            out(res, deezer_result, shazam, video)
+            handle_res(video)
 
-    prnt('Finished: ' + "{:.2f}".format((success/total)*100) + "% success (Invalid: " + str(invalid) + ", Not found: " + str(not_found) + ")")
+    prnt('Finished: ' + "{:.2f}".format((success/total)*100) + "% success (Total: " + str(total) + ", Not found: " + str(not_found) + ")")
     outfile.close()
     failfile.close()
     unavailablefile.close()

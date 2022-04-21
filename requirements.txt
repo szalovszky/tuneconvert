@@ -1,4 +1,4 @@
 yt-dlp
 deezer-python
 shazamio
-ffmpeg-python
+requests
