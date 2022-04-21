@@ -211,8 +211,12 @@ def converto_deezer(query):
             else:
                 res = None
             success = True
-        except:
-            time.sleep(1)
+        except Exception as e:
+            if("quota" in e.lower()):
+                time.sleep(1)
+            else:
+                res = None
+                break
     return res
 
 def deezer_isrc(isrc):
@@ -223,7 +227,11 @@ def deezer_isrc(isrc):
             res = res.as_dict()
             success = True
         except Exception as e:
-            time.sleep(1)
+            if("quota" in e.lower()):
+                time.sleep(1)
+            else:
+                res = None
+                break
     return res
 
 def deezer_album(query):
@@ -245,8 +253,11 @@ def deezer_album(query):
                 res = None
             success = True
         except Exception as e:
-            prnt(e)
-            time.sleep(1)
+            if("quota" in e.lower()):
+                time.sleep(1)
+            else:
+                res = None
+                break
     return res
 
 total = 1
