@@ -12,10 +12,14 @@ import yt_dlp
 import deezer
 from shazamio import Shazam
 
-parser = argparse.ArgumentParser(description="yt2deezer",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description="yt2deezer", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument("-s", "--no-shazam", default=False, help="Use Shazam as a 3rd-party fallback source", action='store_true')
+parser.add_argument("-r", "--reset", default=False, help="Reset output file's and config's contents", action='store_true')
+
+parser.add_argument("-s", "--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
+parser.add_argument("-dt", "--no-deezertrack", default=False, help="Disable DeezerTrack as a source", action='store_true')
+parser.add_argument("-da", "--no-deezeralbum", default=False, help="Disable DeezerAlbum as a source", action='store_true')
+
 parser.add_argument("URL", help="YouTube Playlist/Video")
 
 args = parser.parse_args()
@@ -30,7 +34,7 @@ logging.basicConfig(filename='latest.log', filemode='w', encoding='utf-8', forma
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-outfile = open('out.txt', 'w', encoding="utf-8")
+outfile = open('out.txt', 'a', encoding="utf-8")
 failfile = open('failed.txt', 'w', encoding="utf-8")
 unavailablefile = open('unavailable.txt', 'w', encoding="utf-8")
 
@@ -135,9 +139,10 @@ dontneed_wholeword = [
 ]
 
 def filter_data(artist, title):
-    # Remove unnecessary information between "()"s and "[]"s (ex. Official Music Video)
+    # Remove unnecessary information between "()"s and "[]"s and "||"s (ex. Official Music Video)
     title = re.sub(r'\([\s\S]*\)', '', title)
     title = re.sub(r'\[[\s\S]*\]', '', title)
+    title = re.sub(r'\|[\s\S]*\|', '', title)
 
     # Apply basic filtering
     artist = artist.replace(", ", " ").replace(" x ", " ").replace(";", " ")
@@ -309,13 +314,19 @@ def handle_res(video, i = 0):
             while(not success):
                 prnt("[INFO] Searching using " + get_src_name(src) + "...")
                 if(src == 0):
-                    deezer_result = converto_deezer(res)
-                    if(deezer_result != None):
-                        success = True
+                    if(args.no_deezertrack == False):
+                        deezer_result = converto_deezer(res)
+                        if(deezer_result != None):
+                            success = True
+                    else:
+                        prnt("Not using DeezerTrack, because -dt switch was used")
                 elif(src == 1):
-                    deezer_result = deezer_album(res)
-                    if(deezer_result != None):
-                        success = True
+                    if(args.no_deezeralbum == False):
+                        deezer_result = deezer_album(res)
+                        if(deezer_result != None):
+                            success = True
+                    else:
+                        prnt("Not using DeezerAlbum, because -da switch was used")
                 elif(src == 2):
                     if(args.no_shazam == False):
                         shazam = loop.run_until_complete(shazamit("https://youtu.be/" + video['id']))
@@ -372,6 +383,12 @@ def handle_yt(url):
 if(len(sys.argv) < 2):
     print("No link provided")
     exit()
+
+if(args.reset == True):
+    # Delete output file
+    if os.path.exists("out.txt"):
+        os.remove("out.txt")
+
 prnt("Fetching data...")
 url = args.URL
 if("youtu" in url):
