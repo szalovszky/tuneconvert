@@ -169,7 +169,7 @@ async def shazam_yt(url):
                                         prnt("Last result doesn't match current result, continuing...")
                                     last_isrc = isrc
                             except:
-                                prnt("Segment failed.")
+                                prnt("Segment not found.")
                     if os.path.exists(file):
                         os.remove(file)
                     else:
