@@ -147,6 +147,9 @@ async def shazam_yt(url):
             for file in os.listdir(temp_dir):
                 if (file.startswith("audio")):
                     if (int(file.replace("audio", "").replace(".ogg", "")) % 2 == 0):
+                        if(segment >= 12):
+                            prnt(f"Giving up after {segment} tries")
+                            break
                         segment += 1
                         prnt(f"Testing segment #{segment}...")
                         try:
