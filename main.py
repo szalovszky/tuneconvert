@@ -150,30 +150,35 @@ async def shazam_yt(url):
 
             for file in os.listdir(temp_dir):
                 if (file.startswith("audio")):
+                    file = temp_dir + file
                     if (search):
-                        if (int(file.replace("audio", "").replace(".ogg", "")) % 2 == 0):
+                        if (int(file.replace("audio", "").replace(".ogg", "").replace(temp_dir, "")) % 2 == 0):
                             if(segment >= 12):
                                 prnt(f"Giving up after {segment} tries")
                                 break
                             segment += 1
                             prnt(f"Testing segment #{segment}...")
                             try:
-                                file = temp_dir + file
                                 out = await shazam.recognize_song(file)
                                 isrc = out['track']['isrc']
                                 if(last_isrc == isrc):
                                     found_isrc = isrc
                                     search = False
                                 else:
+                                    if(last_isrc != "0"):
+                                        prnt("Last result doesn't match current result, continuing...")
                                     last_isrc = isrc
                             except:
                                 prnt("Segment failed.")
                     if os.path.exists(file):
                         os.remove(file)
+                    else:
+                        prnt(f"Somehow {file} doesn't exist?")
             
             return found_isrc
             #return (out['track']['subtitle'], out['track']['title'])
-        except:
+        except Exception as e:
+            print(e)
             return None
 loop = asyncio.get_event_loop()
 
