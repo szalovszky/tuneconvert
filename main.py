@@ -141,30 +141,37 @@ async def shazam_yt(url):
 
             os.remove(temp_dir + "audio.ogg")
 
+            found_isrc = None
             last_isrc = "0"
+
             segment = 0
+
+            search = True
 
             for file in os.listdir(temp_dir):
                 if (file.startswith("audio")):
-                    if (int(file.replace("audio", "").replace(".ogg", "")) % 2 == 0):
-                        if(segment >= 12):
-                            prnt(f"Giving up after {segment} tries")
-                            break
-                        segment += 1
-                        prnt(f"Testing segment #{segment}...")
-                        try:
-                            file = temp_dir + file
-                            out = await shazam.recognize_song(file)
-                            isrc = out['track']['isrc']
-                            if os.path.exists(file):
-                                os.remove(file)
-                            if(last_isrc == isrc):
-                                return isrc
-                            else:
-                                last_isrc = isrc
-                        except:
-                            prnt("Segment failed.")
+                    if (search):
+                        if (int(file.replace("audio", "").replace(".ogg", "")) % 2 == 0):
+                            if(segment >= 12):
+                                prnt(f"Giving up after {segment} tries")
+                                break
+                            segment += 1
+                            prnt(f"Testing segment #{segment}...")
+                            try:
+                                file = temp_dir + file
+                                out = await shazam.recognize_song(file)
+                                isrc = out['track']['isrc']
+                                if(last_isrc == isrc):
+                                    found_isrc = isrc
+                                    search = False
+                                else:
+                                    last_isrc = isrc
+                            except:
+                                prnt("Segment failed.")
+                    if os.path.exists(file):
+                        os.remove(file)
             
+            return found_isrc
             #return (out['track']['subtitle'], out['track']['title'])
         except:
             return None
