@@ -2,3 +2,4 @@ yt-dlp
 deezer-python
 shazamio
 requests
+ffmpeg-python

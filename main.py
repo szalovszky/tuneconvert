@@ -1,8 +1,12 @@
+import random
+import string
 import sys
 import time
 import logging
 import argparse
 import os
+import hashlib
+import shutil
 
 from difflib import SequenceMatcher
 import re
@@ -10,20 +14,35 @@ import asyncio
 
 import yt_dlp
 import deezer
+import ffmpeg
 from shazamio import Shazam
 
 parser = argparse.ArgumentParser(description="yt2deezer", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("-r", "--reset", default=False, help="Reset output file's and config's contents", action='store_true')
 
+parser.add_argument("-y", "--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
+
 parser.add_argument("-s", "--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
 parser.add_argument("-dt", "--no-deezertrack", default=False, help="Disable DeezerTrack as a source", action='store_true')
 parser.add_argument("-da", "--no-deezeralbum", default=False, help="Disable DeezerAlbum as a source", action='store_true')
 
-parser.add_argument("URL", help="YouTube Playlist/Video")
+parser.add_argument("URL", help="Source Playlist/Song")
+parser.add_argument("destination", help="Target Platform to sync to")
 
 args = parser.parse_args()
 config = vars(args)
+
+run_id = str(int(time.time())).encode('utf-8') + str(''.join(random.choices(string.ascii_uppercase + string.digits, k=8))).encode('utf-8')
+h = hashlib.new('md5')
+h.update(run_id)
+run_id = h.hexdigest()
+
+working_dir = run_id + "/"
+temp_dir = working_dir + ".temp/"
+
+os.mkdir(working_dir)
+os.mkdir(temp_dir)
 
 def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
@@ -35,8 +54,9 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 outfile = open('out.txt', 'a', encoding="utf-8")
-failfile = open('failed.txt', 'w', encoding="utf-8")
-unavailablefile = open('unavailable.txt', 'w', encoding="utf-8")
+
+failfile = open(working_dir + 'failed.txt', 'w', encoding="utf-8")
+unavailablefile = open(working_dir + 'unavailable.txt', 'w', encoding="utf-8")
 
 def prnt(string):
     global logger
@@ -88,11 +108,8 @@ def my_hook(d):
         filename=d['filename']
         print(filename)
 
-async def shazamit(url):
-    prnt("Please wait, this might take a while...")
-    #prnt(f"Extracting audio of {url}...")
+async def shazam_yt(url):
     ydl_opts = {
-        'logger': dllogger(),
         'format': 'bestaudio/best',
         'postprocessors': [{
             'key': 'FFmpegVideoConvertor',
@@ -106,27 +123,52 @@ async def shazamit(url):
             'key': 'ModifyChapters', 
             'remove_sponsor_segments': ['music_offtopic']
         }],
-        'outtmpl': 'audio',
+        'outtmpl': temp_dir + 'audio',
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
         try:
             error_code = ytdl.download(url)
         except:
             return None
-        #prnt(f"Shazaming {url}...")
         try:
             shazam = Shazam()
-            out = await shazam.recognize_song('audio.ogg')
-            if os.path.exists("audio.ogg"):
-                os.remove("audio.ogg")
+
+            (ffmpeg
+                .input(temp_dir + 'audio.ogg')
+                .output(temp_dir + 'audio%02d.ogg', c='copy', map='0', segment_time='00:00:30', f='segment', reset_timestamps='1')
+                .run()
+            )
+
+            os.remove(temp_dir + "audio.ogg")
+
+            last_isrc = "0"
+            segment = 0
+
+            for file in os.listdir(temp_dir):
+                if (file.startswith("audio")):
+                    if (int(file.replace("audio", "").replace(".ogg", "")) % 2 == 0):
+                        segment += 1
+                        prnt(f"Testing segment #{segment}...")
+                        try:
+                            file = temp_dir + file
+                            out = await shazam.recognize_song(file)
+                            isrc = out['track']['isrc']
+                            if os.path.exists(file):
+                                os.remove(file)
+                            if(last_isrc == isrc):
+                                return isrc
+                            else:
+                                last_isrc = isrc
+                        except:
+                            prnt("Segment failed.")
+            
             #return (out['track']['subtitle'], out['track']['title'])
-            return out['track']['isrc']
         except:
             return None
 loop = asyncio.get_event_loop()
 
 dontneed = [
-    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"',
+    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│",
     "music video", "videoclip", "videoklip", "prod", "version", "album",
     "official", "hivatalos", "radio edit",
     "lyrics", "lyric", "dalszöveg", "dirty", "explicit",
@@ -139,6 +181,10 @@ dontneed_wholeword = [
 ]
 
 def filter_data(artist, title):
+    # Convert all fields to lowercase (search engines don't like cased queries for some reason and it doesn't need to be capitalized anyways)
+    artist = artist.lower()
+    title = title.lower()
+
     # Remove unnecessary information between "()"s and "[]"s and "||"s (ex. Official Music Video)
     title = re.sub(r'\([\s\S]*\)', '', title)
     title = re.sub(r'\[[\s\S]*\]', '', title)
@@ -181,27 +227,39 @@ def filter_data(artist, title):
     title = title.replace(artist + " - ", "")
     title = title.replace(artist, "")
 
+    # Replace Year in titles (very common and confuses most search algos, but sometimes it may be relevant to keep it, so use the -y arg to skip this)
+    if(args.force_year == False):
+        x = title.split()
+        for i in range(len(x)):
+            #x[i] = re.sub(r"^(19|20)\d{2}$", '', x[i])
+            x[i] = re.sub(r"^(19|[2-9][0-9])\d{2}$", '', x[i])
+        title = " ".join(x)
+
     # Lastly, format it nicely and return the result
     x = (artist + " " + title)
     return (" ".join(x.split()))
 
-def parse_video(video):
+def parse_video(video, forceMethod = 0):
     if(video == None):
         return None
-    # Get Artist and Title field from YouTube
-    if("artist" not in video):
-        # No copyright field, try to parse it from video title
-        x = video['title'].lower().split(" - ")
-        if(len(x) > 1):
-            artist = x[0]
-            title = x[1]
+    if(forceMethod == 0):
+        # Get Artist and Title field from YouTube
+        if("artist" not in video):
+            # No copyright field, try to parse it from video title
+            x = video['title'].lower().split(" - ")
+            if(len(x) > 1):
+                artist = x[0]
+                title = x[1]
+            else:
+                artist = ""
+                title = x[0]
         else:
-            artist = ""
-            title = x[0]
-    else:
-        # There is a copyright field on the video, use that
-        artist = video['artist'].lower()
-        title = video['track'].lower()
+            # There is a copyright field on the video, use that
+            artist = video['artist'].lower()
+            title = video['track'].lower()
+    elif(forceMethod == 1):
+        artist = video['uploader']
+        title = video['title']
     
     return filter_data(artist, title)
 
@@ -270,9 +328,10 @@ success = 0
 not_found = 0
 
 src_names = {
-    0: "DeezerTrack",
-    1: "DeezerAlbum",
-    2: "Shazam"
+    0: "DeezerTrackMethod0",
+    1: "DeezerTrackMethod1",
+    2: "DeezerAlbum",
+    3: "Shazam"
 }
 
 def get_src_name(src):
@@ -303,6 +362,7 @@ def handle_res(video, i = 0):
         res = parse_video(video)
         if(res == None):
             if(video == None):
+                prnt("======")
                 prnt("Video not found at index " + str(i))
                 failfile.write("fatalerror:" + str(i) + "\n")
             else:
@@ -312,24 +372,37 @@ def handle_res(video, i = 0):
             src = 0
             success = False
             while(not success):
-                prnt("[INFO] Searching using " + get_src_name(src) + "...")
+                if(src < len(src_names)):
+                    prnt("[INFO] Searching using " + get_src_name(src) + "...")
                 if(src == 0):
                     if(args.no_deezertrack == False):
+                        res = parse_video(video)
                         deezer_result = converto_deezer(res)
                         if(deezer_result != None):
                             success = True
                     else:
-                        prnt("Not using DeezerTrack, because -dt switch was used")
+                        prnt("Not using DeezerTrackMethod0, because -dt switch was used")
                 elif(src == 1):
+                    if(args.no_deezertrack == False):
+                        res = parse_video(video, 1)
+                        deezer_result = converto_deezer(res)
+                        if(deezer_result != None):
+                            success = True
+                    else:
+                        prnt("Not using DeezerTrackMethod1, because -dt switch was used")
+                elif(src == 2):
                     if(args.no_deezeralbum == False):
+                        res = parse_video(video)
                         deezer_result = deezer_album(res)
                         if(deezer_result != None):
                             success = True
                     else:
                         prnt("Not using DeezerAlbum, because -da switch was used")
-                elif(src == 2):
+                elif(src == 3):
                     if(args.no_shazam == False):
-                        shazam = loop.run_until_complete(shazamit("https://youtu.be/" + video['id']))
+                        prnt("Please wait, this process might take a while...")
+                        res = parse_video(video)
+                        shazam = loop.run_until_complete(shazam_yt("https://youtu.be/" + video['id']))
                         if(shazam != None):
                             deezer_result = deezer_isrc(shazam)
                             success = True
@@ -381,7 +454,7 @@ def handle_yt(url):
     unavailablefile.close()
 
 if(len(sys.argv) < 2):
-    print("No link provided")
+    prnt("No link provided")
     exit()
 
 if(args.reset == True):
@@ -390,8 +463,18 @@ if(args.reset == True):
         os.remove("out.txt")
 
 prnt("Fetching data...")
+platform = args.destination
+if("deezer" in platform):
+    prnt("Using Deezer as Target Platform")
+else:
+    prnt("Unsupported destination platform")
+    exit()
+
 url = args.URL
 if("youtu" in url):
     handle_yt(url)
 else:
     prnt("Unsupported source platform")
+    exit()
+
+shutil.rmtree(temp_dir)
