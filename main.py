@@ -53,7 +53,7 @@ logging.basicConfig(filename='latest.log', filemode='w', encoding='utf-8', forma
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-outfile = open('out.txt', 'a', encoding="utf-8")
+outfile = open(working_dir + 'out.txt', 'w', encoding="utf-8")
 
 failfile = open(working_dir + 'failed.txt', 'w', encoding="utf-8")
 unavailablefile = open(working_dir + 'unavailable.txt', 'w', encoding="utf-8")
