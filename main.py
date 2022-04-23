@@ -49,7 +49,7 @@ def similar(a, b):
 
 similarity_threshold = 0.275
 
-logging.basicConfig(filename='latest.log', filemode='w', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
+logging.basicConfig(filename=working_dir + 'log.txt', filemode='w', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
