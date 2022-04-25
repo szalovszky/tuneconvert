@@ -53,6 +53,7 @@ logging.basicConfig(filename=working_dir + 'log.txt', filemode='w', encoding='ut
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+overviewfile = open(working_dir + 'overview.html', 'w', encoding="utf-8")
 outfile = open(working_dir + 'out.txt', 'w', encoding="utf-8")
 
 failfile = open(working_dir + 'failed.txt', 'w', encoding="utf-8")
@@ -183,15 +184,15 @@ async def shazam_yt(url):
 loop = asyncio.get_event_loop()
 
 dontneed = [
-    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│",
+    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶", "🎧",
     "music video", "videoclip", "videoklip", "prod", "version", "album",
     "official", "hivatalos", "radio edit",
     "lyrics", "lyric", "dalszöveg", "dirty", "explicit",
 ]
 
 dontneed_wholeword = [
-    "video", "ost",
-    "feat", "by", "ft", "nightcore",
+    "video", "ost", "nightcore",
+    "feat", "by", "ft", "km",
     "hd", "4k",
 ]
 
@@ -204,6 +205,9 @@ def filter_data(artist, title):
     title = re.sub(r'\([\s\S]*\)', '', title)
     title = re.sub(r'\[[\s\S]*\]', '', title)
     title = re.sub(r'\|[\s\S]*\|', '', title)
+
+    # Fix common problems with the artist field
+    artist = artist.replace("/", " ").replace(";", " ")
 
     # Apply basic filtering
     artist = artist.replace(", ", " ").replace(" x ", " ").replace(";", " ")
@@ -275,8 +279,15 @@ def parse_video(video, forceMethod = 0):
     elif(forceMethod == 1):
         artist = video['uploader']
         title = video['title']
+    elif(forceMethod == 2):
+        artist = ""
+        title = video['title']
     
     return filter_data(artist, title)
+
+def yt_is_mix(video):
+    #is_mix = ((video) Or (video))
+    return False
 
 deezerc = deezer.Client()
 def converto_deezer(query):
@@ -284,9 +295,7 @@ def converto_deezer(query):
     while(not success):
         try:
             res = deezerc.search(query)
-            if(len(res) > 0):
-                res = res[0].as_dict()
-            else:
+            if(len(res) <= 0):
                 res = None
             success = True
         except Exception as e:
@@ -345,8 +354,9 @@ not_found = 0
 src_names = {
     0: "DeezerTrackMethod0",
     1: "DeezerTrackMethod1",
-    2: "DeezerAlbum",
-    3: "Shazam"
+    2: "DeezerTrackMethod2",
+    3: "DeezerAlbum",
+    4: "Shazam"
 }
 
 def get_src_name(src):
@@ -355,11 +365,22 @@ def get_src_name(src):
     else:
         return src_names[src]
 
-def out(res, deezer_result, src):
+def out(res, deezer_result, src, video):
+    # Result ranking
+    highest = ["", 0.0]
+    for dres in deezer_result:
+        dres = dres.as_dict()
+        deezersrc = filter_data(dres['artist']['name'], dres['title']).lower()
+        ressrc = res.lower()
+        compare = similar(deezersrc, ressrc)
+        if(compare > highest[1]):
+            highest[0] = dres
+            highest[1] = compare
+    deezer_result = highest[0]
+
     global success, not_found
-    deezersrc = filter_data(deezer_result['artist']['name'], deezer_result['title']).lower()
-    ressrc = res.lower()
-    compare = similar(deezersrc, ressrc)
+    
+    # Final decision
     final = "[" + str(round(compare*100, 2)) + "% - " + get_src_name(src) + "] " + deezer_result['artist']['name'] + " - " + deezer_result['title']
     if(compare < similarity_threshold):
         return None
@@ -369,78 +390,127 @@ def out(res, deezer_result, src):
         success += 1
         outfile.write(deezer_result['link'] + "\n")
         prnt(final)
+        overviewfile.write("""
+            <tr>
+                <td>Success</td>
+                <td>""" + get_src_name(src) + """</td>
+                <td>""" + str(round(compare*100, 2)) + """%</td>
+                <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
+                <td><a target='_blank' href='""" + deezer_result['link'] + """'>""" + deezer_result['artist']['name'] + " - " + deezer_result['title'] + """</a></td>
+                <td>""" + res + """</td>
+            </tr>
+        """)
         return True
 
 def handle_res(video, i = 0):
     global not_found
-    try:
-        res = parse_video(video)
-        if(res == None):
-            if(video == None):
-                prnt("======")
-                prnt("Video not found at index " + str(i))
-                failfile.write("fatalerror:" + str(i) + "\n")
-            else:
-                failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+    #try:
+    res = parse_video(video)
+    if(res == None):
+        if(video == None):
+            prnt("======")
+            prnt("Video not found at index " + str(i))
+            failfile.write("fatalerror:" + str(i) + "\n")
+            overviewfile.write("""
+                <tr>
+                    <td>Video not found</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>
+            """)
         else:
-            prnt("=== " + video['title'] + " ===")
-            src = 0
-            success = False
-            while(not success):
-                if(src < len(src_names)):
-                    prnt("[INFO] Searching using " + get_src_name(src) + "...")
-                if(src == 0):
-                    if(args.no_deezertrack == False):
-                        res = parse_video(video)
-                        deezer_result = converto_deezer(res)
-                        if(deezer_result != None):
-                            success = True
-                    else:
-                        prnt("Not using DeezerTrackMethod0, because -dt switch was used")
-                elif(src == 1):
-                    if(args.no_deezertrack == False):
-                        res = parse_video(video, 1)
-                        deezer_result = converto_deezer(res)
-                        if(deezer_result != None):
-                            success = True
-                    else:
-                        prnt("Not using DeezerTrackMethod1, because -dt switch was used")
-                elif(src == 2):
-                    if(args.no_deezeralbum == False):
-                        res = parse_video(video)
-                        deezer_result = deezer_album(res)
-                        if(deezer_result != None):
-                            success = True
-                    else:
-                        prnt("Not using DeezerAlbum, because -da switch was used")
-                elif(src == 3):
-                    if(args.no_shazam == False):
-                        prnt("Please wait, this process might take a while...")
-                        res = parse_video(video)
-                        shazam = loop.run_until_complete(shazam_yt("https://youtu.be/" + video['id']))
-                        if(shazam != None):
-                            deezer_result = deezer_isrc(shazam)
-                            success = True
-                    else:
-                        prnt("Not using Shazam, because -s switch was used")
+            failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+            overviewfile.write("""
+                <tr>
+                    <td>Res error</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>
+            """)
+    else:
+        prnt("=== " + video['title'] + " ===")
+        src = 0
+        success = False
+        #yt_is_mix(video)
+        while(not success):
+            if(src < len(src_names)):
+                prnt("[INFO] Searching using " + get_src_name(src) + "...")
+            if(src == 0):
+                if(args.no_deezertrack == False):
+                    res = parse_video(video)
+                    deezer_result = converto_deezer(res)
+                    if(deezer_result != None):
+                        success = True
                 else:
-                    success = True
-                    prnt("[ERROR] Not found " + res)
-                    not_found += 1
-                    failfile.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-                    outfile.write("https://youtu.be/" + video['id'] + "\n")
-                    break
-                if(success):
-                    if(out(res, deezer_result, src) == None):
-                        success = False
-                if(not success):
-                    if(src < len(src_names)):
-                        prnt("[WARN] Couldn't find using " + get_src_name(src))
-                    src += 1
-    except Exception as e:
-        prnt("Handling error at index " + str(i))
-        prnt(e)
-        failfile.write("handleerror:" + str(i) + "\n")
+                    prnt("Not using DeezerTrackMethod0, because -dt switch was used")
+            elif(src == 1):
+                if(args.no_deezertrack == False):
+                    res = parse_video(video, 1)
+                    deezer_result = converto_deezer(res)
+                    if(deezer_result != None):
+                        success = True
+                else:
+                    prnt("Not using DeezerTrackMethod1, because -dt switch was used")
+            elif(src == 2):
+                if(args.no_deezertrack == False):
+                    res = parse_video(video, 2)
+                    deezer_result = converto_deezer(res)
+                    if(deezer_result != None):
+                        success = True
+                else:
+                    prnt("Not using DeezerTrackMethod2, because -dt switch was used")
+            elif(src == 3):
+                if(args.no_deezeralbum == False):
+                    res = parse_video(video)
+                    deezer_result = deezer_album(res)
+                    if(deezer_result != None):
+                        success = True
+                else:
+                    prnt("Not using DeezerAlbum, because -da switch was used")
+            elif(src == 4):
+                if(args.no_shazam == False):
+                    prnt("Please wait, this process might take a while...")
+                    res = parse_video(video)
+                    shazam = loop.run_until_complete(shazam_yt("https://youtu.be/" + video['id']))
+                    if(shazam != None):
+                        deezer_result = deezer_isrc(shazam)
+                        success = True
+                else:
+                    prnt("Not using Shazam, because -s switch was used")
+            else:
+                success = True
+                prnt("[ERROR] Not found " + res)
+                not_found += 1
+                failfile.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+                outfile.write("https://youtu.be/" + video['id'] + "\n")
+                overviewfile.write("""
+                    <tr>
+                        <td>Not found</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
+                        <td>-</td>
+                        <td>""" + res + """</td>
+                    </tr>
+                """)
+                break
+            if(success):
+                if(out(res, deezer_result, src, video) == None):
+                    success = False
+            if(not success):
+                if(src < len(src_names)):
+                    prnt("[WARN] Couldn't find using " + get_src_name(src))
+                src += 1
+    #except Exception as e:
+     #   prnt("Handling error at index " + str(i))
+    #    prnt(e)
+    #    failfile.write("handleerror:" + str(i) + "\n")
 
 def handle_yt(url):
     global success, not_found, total
@@ -485,6 +555,37 @@ else:
     prnt("Unsupported destination platform")
     exit()
 
+overviewfile.write("""<style>
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+</style>
+<meta charset="UTF-8">
+<meta name="overview-version" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<h1>Result <a href='out.txt'>(open)</a></h1>
+<table>
+<tr>
+    <th>Status</th>
+    <th>Engine</th>
+    <th>Certainty</th>
+    <th>Original</th>
+    <th>Found</th>
+    <th>Query</th>
+</tr>""")
+
 url = args.URL
 if("youtu" in url):
     handle_yt(url)
@@ -492,4 +593,5 @@ else:
     prnt("Unsupported source platform")
     exit()
 
+overviewfile.write("</table>")
 shutil.rmtree(temp_dir)
