@@ -9,7 +9,6 @@ import hashlib
 import shutil
 import json
 
-from difflib import SequenceMatcher
 import re
 import asyncio
 import requests
@@ -20,7 +19,9 @@ import deezer
 import ffmpeg
 from shazamio import Shazam
 
+import constants
 from platforms import deezer_platform
+from utils import utils
 
 parser = argparse.ArgumentParser(description="yt2deezer", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -54,11 +55,6 @@ if(not os.path.exists(out_dir)):
     os.mkdir(out_dir)
 os.mkdir(working_dir)
 os.mkdir(temp_dir)
-
-def similar(a, b):
-    return SequenceMatcher(None, a, b).ratio()
-
-similarity_threshold = 0.275
 
 logging.basicConfig(filename=working_dir + 'log.txt', filemode='w', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
@@ -198,81 +194,6 @@ async def shazam_yt(url):
             return None
 loop = asyncio.get_event_loop()
 
-dontneed = [
-    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶", "🎧",
-    "music video", "videoclip", "videoklip", "prod", "version", "album",
-    "official", "hivatalos", "radio edit", "full song",
-    "lyrics", "lyric", "dalszöveg", "dirty", "explicit",
-]
-
-dontneed_wholeword = [
-    "video", "ost", "nightcore", "uncensored",
-    "feat", "by", "ft", "km",
-    "hd", "4k",
-]
-
-def filter_data(artist, title):
-    # Convert all fields to lowercase (search engines don't like cased queries for some reason and it doesn't need to be capitalized anyways)
-    artist = artist.lower()
-    title = title.lower()
-
-    # Remove unnecessary information between "()"s and "[]"s and "||"s (ex. Official Music Video)
-    title = re.sub(r'\([\s\S]*\)', '', title)
-    title = re.sub(r'\[[\s\S]*\]', '', title)
-    title = re.sub(r'\|[\s\S]*\|', '', title)
-
-    # Fix common problems with the artist field
-    artist = artist.replace("/", " ").replace(";", " ")
-
-    # Apply basic filtering
-    artist = artist.replace(", ", " ").replace(" x ", " ").replace(";", " ")
-    title = title.replace(", ", " ").replace(" x ", " ")
-
-    # Apply advanced filtering by replacing every instance of filtered words
-    for item in dontneed:
-        artist = artist.replace(item, "")
-        title = title.replace(item, "")
-
-    # Apply advanced filtering by replacing full word matches of filtered words
-    x = artist.split()
-    for i in range(len(x)):
-        for word in dontneed_wholeword:
-            if(word.lower() == (x[i]).lower()):
-                x[i] = ""
-    artist = " ".join(x)
-
-    x = title.split()
-    for i in range(len(x)):
-        for word in dontneed_wholeword:
-            if(word.lower() == (x[i]).lower()):
-                x[i] = ""
-    title = " ".join(x)
-
-    # Cut out unnecessary spaces from the Artist field
-    artist = " ".join(artist.split())
-
-    # Cut out Artist from Title field and Cut out unnecessary spaces from the Title field
-    x = title.split()
-    for i in range(len(x)):
-        if((similar(artist, x[i]) > .25) and (artist.split()[0] in x[i])):
-            x[i] = ""
-    title = " ".join(x)
-
-    title = title.replace(artist + " - ", "")
-    title = title.replace(artist, "")
-
-    # Replace Year in titles (very common and confuses most search algos, but sometimes it may be relevant to keep it, so use the -y arg to skip this)
-    if(args.force_year == False):
-        x = title.split()
-        for i in range(len(x)):
-            #x[i] = re.sub(r"^(19|20)\d{2}$", '', x[i])
-            x[i] = re.sub(r"^(19|[2-9][0-9])\d{2}$", '', x[i])
-        title = " ".join(x)
-
-    # Lastly, format it nicely and return the result
-    x = (artist + " " + title)
-    return (" ".join(x.split()))
-
 def parse_video(video, forceMethod = 0):
     if(video == None):
         return None
@@ -298,7 +219,7 @@ def parse_video(video, forceMethod = 0):
         artist = ""
         title = video['title']
     
-    return filter_data(artist, title)
+    return utils.filter_data(artist, title, constants.dontneed, constants.dontneed_wholeword, not args.force_year)
 
 def yt_is_mix(video):
     #is_mix = ((video) Or (video))
@@ -352,213 +273,165 @@ total = 1
 success = 0
 not_found = 0
 
-src_names = {
-    0: "DeezerTrackMethod0",
-    1: "DescriptionLinkParse",
-    2: "DeezerTrackMethod1",
-    3: "DeezerTrackMethod2",
-    4: "DeezerAlbum",
-    5: "Shazam"
-}
-
-def get_src_name(src):
-    if(src > (len(src_names)-1)):
-        return ""
-    else:
-        return src_names[src]
-
-def out(res, deezer_result, src, video):
-    # Result ranking
-    if(deezer_result != None):
-        try:
-            iterator = iter(deezer_result)
-        except TypeError:
-            try:
-                deezer_result = deezer_result.as_dict()
-            except:
-                pass
-            deezersrc = filter_data(deezer_result['artist']['name'], deezer_result['title']).lower()
-            ressrc = res.lower()
-            compare = similar(deezersrc, ressrc)
-        else:
-            highest = ["", 0.0]
-            tsuccess = False
-            while(not tsuccess):
-                try:
-                    for dres in deezer_result:
-                        try:
-                            dres['title']
-                        except TypeError:
-                            dres = dres.as_dict()
-                        deezersrc = filter_data(dres['artist']['name'], dres['title']).lower()
-                        ressrc = res.lower()
-                        compare = similar(deezersrc, ressrc)
-                        if(compare > highest[1]):
-                            highest[0] = dres
-                            highest[1] = compare
-                    deezer_result = highest[0]
-                    tsuccess = True
-                except Exception as e:
-                    if("quota" in str(e).lower()):
-                        time.sleep(1)
-                    else:
-                        return None
-            compare = highest[1]
-    else:
-        return None
-
-    global success, not_found
-    
-    # Final decision
-    final = "[" + str(round(compare*100, 2)) + "% - " + get_src_name(src) + "] " + deezer_result['artist']['name'] + " - " + deezer_result['title']
-    if(compare < similarity_threshold):
-        return None
-    else:
-        final = "[SUCCESS] " + final
-        success += 1
-        outfile.write(deezer_result['link'] + "\n")
-        prnt(final)
-        overviewfile.write("""
-            <tr>
-                <td>Success</td>
-                <td>""" + get_src_name(src) + """</td>
-                <td>""" + str(round(compare*100, 2)) + """%</td>
-                <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
-                <td><a target='_blank' href='""" + deezer_result['link'] + """'>""" + deezer_result['artist']['name'] + " - " + deezer_result['title'] + """</a></td>
-                <td>""" + res + """</td>
-            </tr>
-        """)
-        return True
-
 def handle_res(video, i = 0):
-    global not_found
-    try:
-        res = parse_video(video)
-        if(res == None):
-            if(video == None):
-                hookout(f"error:video_not_found")
-                prnt("======")
-                prnt("Video not found at index " + str(i))
-                failfile.write("fatalerror:" + str(i) + "\n")
-                overviewfile.write("""
-                    <tr>
-                        <td>Video not found</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                    </tr>
-                """)
+    global success, not_found
+    #try:
+    res = parse_video(video)
+    if(res == None):
+        if(video == None):
+            hookout(f"error:video_not_found")
+            prnt("======")
+            prnt("Video not found at index " + str(i))
+            failfile.write("fatalerror:" + str(i) + "\n")
+            overviewfile.write("""
+                <tr>
+                    <td>Video not found</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>
+            """)
+        else:
+            hookout(f"error:general_error")
+            failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+            overviewfile.write("""
+                <tr>
+                    <td>Res error</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>
+            """)
+    else:
+        hookout(f"info:checking:{video['title']}")
+        prnt("=== " + video['title'] + " ===")
+        src = 0
+        tsuccess = False
+        #yt_is_mix(video)
+        while(not tsuccess):
+            if(src < len(constants.src_names)):
+                src_name = constants.src_name(src)
+                prnt("[INFO] Searching using " + src_name + "...")
+                hookout(f"info:checking_src:{src_name}")
+            if(src == 0):
+                if(args.no_deezertrack == False):
+                    parsed_video = parse_video(video)
+                    res = " ".join(parsed_video)
+                    deezer_result = deezer_platform.search_track(res)
+                    res = parsed_video
+                    if(deezer_result != None):
+                        tsuccess = True
+                else:
+                    prnt("Not using DeezerTrackMethod0, because -dt switch was used")
+            elif(src == 1):
+                if(args.no_links == False):
+                    parsed_video = parse_video(video)
+                    res = " ".join(parsed_video)
+                    lres = check_links(video['description'].replace("\n", " "))
+                    if(lres != None):
+                        if(lres[0] != None):
+                            lres = lres[0]
+                            deezer_result = deezer_platform.trackid(lres)
+                        elif(lres[1] != None):
+                            lres = lres[1]
+                            deezer_result = deezer_platform.isrc(lres)
+                        if(deezer_result != None):
+                            tsuccess = True
+                else:
+                    prnt("Not using DescriptionLinkParse, because -l switch was used")
+            elif(src == 2):
+                if(args.no_deezertrack == False):
+                    parsed_video = parse_video(video, 1)
+                    res = " ".join(parsed_video)
+                    deezer_result = deezer_platform.search_track(res)
+                    if(deezer_result != None):
+                        tsuccess = True
+                else:
+                    prnt("Not using DeezerTrackMethod1, because -dt switch was used")
+            elif(src == 3):
+                if(args.no_deezertrack == False):
+                    parsed_video = parse_video(video, 2)
+                    res = " ".join(parsed_video)
+                    deezer_result = deezer_platform.search_track(res)
+                    if(deezer_result != None):
+                        tsuccess = True
+                else:
+                    prnt("Not using DeezerTrackMethod2, because -dt switch was used")
+            elif(src == 4):
+                if(args.no_deezeralbum == False):
+                    parsed_video = parse_video(video)
+                    res = " ".join(parsed_video)
+                    deezer_result = deezer_platform.search_album(res)
+                    if(deezer_result != None):
+                        tsuccess = True
+                else:
+                    prnt("Not using DeezerAlbum, because -da switch was used")
+            elif(src == 5):
+                if(args.no_shazam == False):
+                    prnt("Please wait, this process might take a while...")
+                    parsed_video = parse_video(video)
+                    res = " ".join(parsed_video)
+                    shazam = loop.run_until_complete(shazam_yt("https://youtu.be/" + video['id']))
+                    if(shazam != None):
+                        deezer_result = deezer_platform.isrc(shazam)
+                        tsuccess = True
+                else:
+                    prnt("Not using Shazam, because -s switch was used")
             else:
-                hookout(f"error:general_error")
-                failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+                tsuccess = True
+                prnt("[ERROR] Not found " + video['title'])
+                not_found += 1
+                failfile.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+                outfile.write("https://youtu.be/" + video['id'] + "\n")
                 overviewfile.write("""
                     <tr>
-                        <td>Res error</td>
+                        <td>Not found</td>
                         <td>-</td>
                         <td>-</td>
                         <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
                         <td>-</td>
-                        <td>-</td>
+                        <td>""" + str(res) + """</td>
                     </tr>
                 """)
-        else:
-            hookout(f"info:checking:{video['title']}")
-            prnt("=== " + video['title'] + " ===")
-            src = 0
-            success = False
-            #yt_is_mix(video)
-            while(not success):
-                if(src < len(src_names)):
-                    src_name = get_src_name(src)
-                    prnt("[INFO] Searching using " + src_name + "...")
-                    hookout(f"info:checking_src:{src_name}")
-                if(src == 0):
-                    if(args.no_deezertrack == False):
-                        res = parse_video(video)
-                        deezer_result = deezer_platform.search_track(res)
-                        if(deezer_result != None):
-                            success = True
-                    else:
-                        prnt("Not using DeezerTrackMethod0, because -dt switch was used")
-                elif(src == 1):
-                    if(args.no_links == False):
-                        lres = check_links(video['description'].replace("\n", " "))
-                        if(lres != None):
-                            if(lres[0] != None):
-                                lres = lres[0]
-                                deezer_result = deezer_platform.trackid(lres)
-                            elif(lres[1] != None):
-                                lres = lres[1]
-                                deezer_result = deezer_platform.isrc(lres)
-                            if(deezer_result != None):
-                                success = True
-                    else:
-                        prnt("Not using DescriptionLinkParse, because -l switch was used")
-                elif(src == 2):
-                    if(args.no_deezertrack == False):
-                        res = parse_video(video, 1)
-                        deezer_result = deezer_platform.search_track(res)
-                        if(deezer_result != None):
-                            success = True
-                    else:
-                        prnt("Not using DeezerTrackMethod1, because -dt switch was used")
-                elif(src == 3):
-                    if(args.no_deezertrack == False):
-                        res = parse_video(video, 2)
-                        deezer_result = deezer_platform.search_track(res)
-                        if(deezer_result != None):
-                            success = True
-                    else:
-                        prnt("Not using DeezerTrackMethod2, because -dt switch was used")
-                elif(src == 4):
-                    if(args.no_deezeralbum == False):
-                        res = parse_video(video)
-                        deezer_result = deezer_platform.search_album(res)
-                        if(deezer_result != None):
-                            success = True
-                    else:
-                        prnt("Not using DeezerAlbum, because -da switch was used")
-                elif(src == 5):
-                    if(args.no_shazam == False):
-                        prnt("Please wait, this process might take a while...")
-                        res = parse_video(video)
-                        shazam = loop.run_until_complete(shazam_yt("https://youtu.be/" + video['id']))
-                        if(shazam != None):
-                            deezer_result = deezer_platform.isrc(shazam)
-                            success = True
-                    else:
-                        prnt("Not using Shazam, because -s switch was used")
+                break
+            if(tsuccess):
+                deezer_check = deezer_platform.check_yt_res(video, deezer_result, res)
+                if(deezer_check == None or deezer_check == False):
+                    print(deezer_check)
+                    tsuccess = False
                 else:
-                    success = True
-                    prnt("[ERROR] Not found " + video['title'])
-                    not_found += 1
-                    failfile.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-                    outfile.write("https://youtu.be/" + video['id'] + "\n")
-                    overviewfile.write("""
-                        <tr>
-                            <td>Not found</td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
-                            <td>-</td>
-                            <td>""" + res + """</td>
-                        </tr>
-                    """)
-                    break
-                if(success):
-                    if(out(res, deezer_result, src, video) == None):
-                        success = False
-                if(not success):
-                    if(src < len(src_names)):
-                        prnt("[WARN] Couldn't find using " + get_src_name(src))
-                    src += 1
-        hookout(f"info:progress:{i+1}/{total};{not_found}")
-    except Exception as e:
-        prnt("Handling error at index " + str(i))
-        prnt(e)
-        failfile.write("handleerror:" + str(i) + "\n")
+                    certainty = deezer_check[0]
+                    deezer_res = deezer_check[1]
+                    formatted_certainty = str(round(certainty*100, 2))
+                    if(certainty > constants.similarity_threshold):
+                        prnt(f"[SUCCESS] [{formatted_certainty}% - {constants.src_name(src)}] {deezer_res['artist']['name']} - {deezer_res['title']}")
+                        success += 1
+                        outfile.write(deezer_res['link'] + "\n")
+                        overviewfile.write("""
+                            <tr>
+                                <td>Success</td>
+                                <td>""" + constants.src_name(src) + """</td>
+                                <td>""" + formatted_certainty + """%</td>
+                                <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
+                                <td><a target='_blank' href='""" + deezer_res['link'] + """'>""" + deezer_res['artist']['name'] + " - " + deezer_res['title'] + """</a></td>
+                                <td>""" + str(res) + """</td>
+                            </tr>
+                        """)
+                    else:
+                        tsuccess = False
+            if(not tsuccess):
+                if(src < len(constants.src_names)):
+                    prnt("[WARN] Couldn't find using " + constants.src_name(src))
+                src += 1
+    hookout(f"info:progress:{i+1}/{total};{not_found}")
+    #except Exception as e:
+    #    prnt("Handling error at index " + str(i))
+    #    prnt(e)
+    #    failfile.write("handleerror:" + str(i) + "\n")
 
 def handle_yt(url):
     global success, not_found, total
