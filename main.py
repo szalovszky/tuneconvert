@@ -44,9 +44,12 @@ h = hashlib.new('md5')
 h.update(run_id)
 run_id = h.hexdigest()
 
-working_dir = run_id + "/"
+out_dir = "output/"
+working_dir = out_dir + run_id + "/"
 temp_dir = working_dir + ".temp/"
 
+if(not os.path.exists(out_dir)):
+    os.mkdir(out_dir)
 os.mkdir(working_dir)
 os.mkdir(temp_dir)
 
@@ -371,43 +374,46 @@ def deezer_album(query):
     return res
 
 def check_links(desc):
-    res = None
-    x = desc.split()
-    for i in range(len(x)):
-        domain = re.sub(r"(https?:\/\/)?([w]{3}\.)?(\w*.\w*)([\/\w]*)", "\\3", x[i])
-        if(domain.endswith("lnk.to")):
-            res = x[i]
-            break
-
-    if(res == None):
-        return res
-
-    page = requests.get(res)
-    res = [None, None]
-
-    soup = BeautifulSoup(page.content, "html.parser")
-    elems = soup.find_all("div", class_="music-service-list__item")
-
-    for elem in elems:
-        link_elem = elem.find("a", class_="music-service-list__link")
-        link = link_elem["href"]
-        domain = re.sub(r"(https?:\/\/)?([w]{3}\.)?(\w*.\w*)([\/\w]*)", "\\3", link)
-        if(domain.startswith("deezer.com")):
-            if("?" in link):
-                link = link.split("?")[0]
-            res = [link.replace("https://www.deezer.com/track/", ""), res[1]]
-        elif(domain.startswith("open.spotify.com")):
-            # Deezer as a platform wasn't found, but we can find the ISRC from here
-            # TODO: Janky solution, replace
-            infojson = " ".join(soup.find('script', id="linkfire-tracking-data").string.split()) # Find <script> object and remove unnecessary whitespace from the string
-            infojson = (infojson.replace("window.linkfire.tracking = { version: 1, parameters: ", "").replace(", required: {}, performance: {}, advertising: {}, additionalParameters: { subscribe: [], }, visitTrackingEvent: \"pageview\" };", "")) # Clear out non-JSON part of the <script>
-            infojson = json.loads(infojson) # JSONify it
-            res = [res[0], infojson['isrcs'][0]]
-
-    if((res[0] == None) and (res[1] == None)):
+    try:
         res = None
+        x = desc.split()
+        for i in range(len(x)):
+            domain = re.sub(r"(https?:\/\/)?([w]{3}\.)?(\w*.\w*)([\/\w]*)", "\\3", x[i])
+            if(domain.endswith("lnk.to")):
+                res = x[i]
+                break
 
-    return res
+        if(res == None):
+            return res
+
+        page = requests.get(res)
+        res = [None, None]
+
+        soup = BeautifulSoup(page.content, "html.parser")
+        elems = soup.find_all("div", class_="music-service-list__item")
+
+        for elem in elems:
+            link_elem = elem.find("a", class_="music-service-list__link")
+            link = link_elem["href"]
+            domain = re.sub(r"(https?:\/\/)?([w]{3}\.)?(\w*.\w*)([\/\w]*)", "\\3", link)
+            if(domain.startswith("deezer.com")):
+                if("?" in link):
+                    link = link.split("?")[0]
+                res = [link.replace("https://www.deezer.com/track/", ""), res[1]]
+            elif(domain.startswith("open.spotify.com")):
+                # Deezer as a platform wasn't found, but we can find the ISRC from here
+                # TODO: Janky solution, replace
+                infojson = " ".join(soup.find('script', id="linkfire-tracking-data").string.split()) # Find <script> object and remove unnecessary whitespace from the string
+                infojson = (infojson.replace("window.linkfire.tracking = { version: 1, parameters: ", "").replace(", required: {}, performance: {}, advertising: {}, additionalParameters: { subscribe: [], }, visitTrackingEvent: \"pageview\" };", "")) # Clear out non-JSON part of the <script>
+                infojson = json.loads(infojson) # JSONify it
+                res = [res[0], infojson['isrcs'][0]]
+
+        if((res[0] == None) and (res[1] == None)):
+            res = None
+
+        return res
+    except:
+        return None
 
 total = 1
 success = 0
@@ -525,7 +531,6 @@ def handle_res(video, i = 0):
                     </tr>
                 """)
         else:
-            hookout(f"info:progress:{i+1}/{total}")
             hookout(f"info:checking:{video['title']}")
             prnt("=== " + video['title'] + " ===")
             src = 0
@@ -533,7 +538,9 @@ def handle_res(video, i = 0):
             #yt_is_mix(video)
             while(not success):
                 if(src < len(src_names)):
-                    prnt("[INFO] Searching using " + get_src_name(src) + "...")
+                    src_name = get_src_name(src)
+                    prnt("[INFO] Searching using " + src_name + "...")
+                    hookout(f"info:checking_src:{src_name}")
                 if(src == 0):
                     if(args.no_deezertrack == False):
                         res = parse_video(video)
@@ -614,6 +621,7 @@ def handle_res(video, i = 0):
                     if(src < len(src_names)):
                         prnt("[WARN] Couldn't find using " + get_src_name(src))
                     src += 1
+        hookout(f"info:progress:{i+1}/{total};{not_found}")
     except Exception as e:
         prnt("Handling error at index " + str(i))
         prnt(e)
