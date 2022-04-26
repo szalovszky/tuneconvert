@@ -535,6 +535,7 @@ latest.log
 out.txt
 unavailable.txt
 audio*
+[Oo]utput/
 
 ### OTHER ###
 .vscode/launch.json
