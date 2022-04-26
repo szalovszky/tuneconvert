@@ -31,6 +31,8 @@ parser.add_argument("-l", "--no-links", default=False, help="Disable Description
 parser.add_argument("-dt", "--no-deezertrack", default=False, help="Disable DeezerTrack as a source", action='store_true')
 parser.add_argument("-da", "--no-deezeralbum", default=False, help="Disable DeezerAlbum as a source", action='store_true')
 
+parser.add_argument("--hook", default=False, help="Special argument", action='store_true')
+
 parser.add_argument("URL", help="Source Playlist/Song")
 parser.add_argument("destination", help="Target Platform to sync to")
 
@@ -67,6 +69,10 @@ def prnt(string):
     global logger
     print(string)
     logger.info(string)
+
+def hookout(string):
+    if(args.hook):
+        print(f"hook>{string}")
 
 class normallogger:
     def debug(self, msg):
@@ -491,6 +497,7 @@ def handle_res(video, i = 0):
         res = parse_video(video)
         if(res == None):
             if(video == None):
+                hookout(f"error:video_not_found")
                 prnt("======")
                 prnt("Video not found at index " + str(i))
                 failfile.write("fatalerror:" + str(i) + "\n")
@@ -505,6 +512,7 @@ def handle_res(video, i = 0):
                     </tr>
                 """)
             else:
+                hookout(f"error:general_error")
                 failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
                 overviewfile.write("""
                     <tr>
@@ -517,6 +525,8 @@ def handle_res(video, i = 0):
                     </tr>
                 """)
         else:
+            hookout(f"info:progress:{i+1}/{total}")
+            hookout(f"info:checking:{video['title']}")
             prnt("=== " + video['title'] + " ===")
             src = 0
             success = False
@@ -614,8 +624,9 @@ def handle_yt(url):
     global loop
     ydl = yt_dlp.YoutubeDL({"ignoreerrors": True, 'logger': normallogger(), 'progress_hooks': [my_hook],})
     with ydl:
+        hookout(f"info:fetching")
         result = ydl.extract_info(url, download=False)
-        prnt("Parsing data...")
+        hookout(f"info:parsing")
         
         if 'entries' in result:
             # This is a playlist or a list of videos
@@ -635,21 +646,19 @@ def handle_yt(url):
     failfile.close()
     unavailablefile.close()
 
-if(len(sys.argv) < 2):
-    prnt("No link provided")
-    exit()
-
 if(args.reset == True):
     # Delete output file
     if os.path.exists("out.txt"):
         os.remove("out.txt")
 
-prnt("Fetching data...")
+hookout(f"start:{run_id}")
 platform = args.destination
 if("deezer" in platform):
     prnt("Using Deezer as Target Platform")
+    hookout(f"info:platform_target_deezer")
 else:
     prnt("Unsupported destination platform")
+    hookout(f"error:unsupported_target_platform")
     exit()
 
 overviewfile.write("""<style>
@@ -685,10 +694,13 @@ tr:nth-child(even) {
 
 url = args.URL
 if("youtu" in url):
+    hookout(f"info:platform_source_youtube")
     handle_yt(url)
 else:
     prnt("Unsupported source platform")
+    hookout(f"error:unsupported_source_platform")
     exit()
 
 overviewfile.write("</table>")
 shutil.rmtree(temp_dir)
+hookout(f"end:{run_id}")
