@@ -20,6 +20,8 @@ import deezer
 import ffmpeg
 from shazamio import Shazam
 
+from platforms import deezer_platform
+
 parser = argparse.ArgumentParser(description="yt2deezer", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("-r", "--reset", default=False, help="Reset output file's and config's contents", action='store_true')
@@ -303,75 +305,6 @@ def yt_is_mix(video):
     return False
 
 deezerc = deezer.Client()
-def converto_deezer(query):
-    success = False
-    while(not success):
-        try:
-            res = deezerc.search(query)
-            if(len(res) <= 0):
-                res = None
-            success = True
-        except Exception as e:
-            if("quota" in str(e).lower()):
-                time.sleep(1)
-            else:
-                res = None
-                break
-    return res
-
-def deezer_isrc(isrc):
-    success = False
-    while(not success):
-        try:
-            res = deezerc.request("GET", "track/isrc:" + isrc, resource_type=deezer.Track)
-            success = True
-        except Exception as e:
-            if("quota" in str(e).lower()):
-                time.sleep(1)
-            else:
-                res = None
-                break
-    return res
-
-def deezer_id(id):
-    success = False
-    while(not success):
-        try:
-            res = deezerc.request("GET", "track/" + id, resource_type=deezer.Track)
-            success = True
-        except Exception as e:
-            if("quota" in str(e).lower()):
-                time.sleep(1)
-            else:
-                res = None
-                break
-    return res
-
-def deezer_album(query):
-    success = False
-    while(not success):
-        try:
-            res = deezerc.request("GET", "search/album?q=" + query, resource_type=deezer.Album)
-            if(len(res) > 0):
-                res = res[0].as_dict()
-                if(res['record_type'] == "single"):
-                    res = deezerc.request("GET", res['tracklist'].replace("https://api.deezer.com/", ""))
-                    if(len(res) > 0):
-                        res = res[0]
-                    else:
-                        res = None
-                else:
-                    res = None
-            else:
-                res = None
-            success = True
-        except Exception as e:
-            if("quota" in str(e).lower()):
-                time.sleep(1)
-            else:
-                res = None
-                break
-    return res
 
 def check_links(desc):
     try:
@@ -544,7 +477,7 @@ def handle_res(video, i = 0):
                 if(src == 0):
                     if(args.no_deezertrack == False):
                         res = parse_video(video)
-                        deezer_result = converto_deezer(res)
+                        deezer_result = deezer_platform.search_track(res)
                         if(deezer_result != None):
                             success = True
                     else:
@@ -555,10 +488,10 @@ def handle_res(video, i = 0):
                         if(lres != None):
                             if(lres[0] != None):
                                 lres = lres[0]
-                                deezer_result = deezer_id(lres)
+                                deezer_result = deezer_platform.trackid(lres)
                             elif(lres[1] != None):
                                 lres = lres[1]
-                                deezer_result = deezer_isrc(lres)
+                                deezer_result = deezer_platform.isrc(lres)
                             if(deezer_result != None):
                                 success = True
                     else:
@@ -566,7 +499,7 @@ def handle_res(video, i = 0):
                 elif(src == 2):
                     if(args.no_deezertrack == False):
                         res = parse_video(video, 1)
-                        deezer_result = converto_deezer(res)
+                        deezer_result = deezer_platform.search_track(res)
                         if(deezer_result != None):
                             success = True
                     else:
@@ -574,7 +507,7 @@ def handle_res(video, i = 0):
                 elif(src == 3):
                     if(args.no_deezertrack == False):
                         res = parse_video(video, 2)
-                        deezer_result = converto_deezer(res)
+                        deezer_result = deezer_platform.search_track(res)
                         if(deezer_result != None):
                             success = True
                     else:
@@ -582,7 +515,7 @@ def handle_res(video, i = 0):
                 elif(src == 4):
                     if(args.no_deezeralbum == False):
                         res = parse_video(video)
-                        deezer_result = deezer_album(res)
+                        deezer_result = deezer_platform.search_album(res)
                         if(deezer_result != None):
                             success = True
                     else:
@@ -593,7 +526,7 @@ def handle_res(video, i = 0):
                         res = parse_video(video)
                         shazam = loop.run_until_complete(shazam_yt("https://youtu.be/" + video['id']))
                         if(shazam != None):
-                            deezer_result = deezer_isrc(shazam)
+                            deezer_result = deezer_platform.isrc(shazam)
                             success = True
                     else:
                         prnt("Not using Shazam, because -s switch was used")
