@@ -1,5 +1,6 @@
-yt-dlp
-deezer-python
-shazamio
-requests
-ffmpeg-python
+yt-dlp>=2022.4.8
+deezer-python>=5.3.1
+shazamio>=0.1.1.0
+requests>=2.27.1
+ffmpeg-python>=0.2.0
+beautifulsoup>=4.11.1

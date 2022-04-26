@@ -7,10 +7,13 @@ import argparse
 import os
 import hashlib
 import shutil
+import json
 
 from difflib import SequenceMatcher
 import re
 import asyncio
+import requests
+from bs4 import BeautifulSoup
 
 import yt_dlp
 import deezer
@@ -24,6 +27,7 @@ parser.add_argument("-r", "--reset", default=False, help="Reset output file's an
 parser.add_argument("-y", "--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
 
 parser.add_argument("-s", "--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
+parser.add_argument("-l", "--no-links", default=False, help="Disable DescriptionLinkParse as a source", action='store_true')
 parser.add_argument("-dt", "--no-deezertrack", default=False, help="Disable DeezerTrack as a source", action='store_true')
 parser.add_argument("-da", "--no-deezeralbum", default=False, help="Disable DeezerAlbum as a source", action='store_true')
 
@@ -186,12 +190,12 @@ loop = asyncio.get_event_loop()
 dontneed = [
     "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶", "🎧",
     "music video", "videoclip", "videoklip", "prod", "version", "album",
-    "official", "hivatalos", "radio edit",
+    "official", "hivatalos", "radio edit", "full song",
     "lyrics", "lyric", "dalszöveg", "dirty", "explicit",
 ]
 
 dontneed_wholeword = [
-    "video", "ost", "nightcore",
+    "video", "ost", "nightcore", "uncensored",
     "feat", "by", "ft", "km",
     "hd", "4k",
 ]
@@ -299,7 +303,7 @@ def converto_deezer(query):
                 res = None
             success = True
         except Exception as e:
-            if("quota" in e.lower()):
+            if("quota" in str(e).lower()):
                 time.sleep(1)
             else:
                 res = None
@@ -311,10 +315,23 @@ def deezer_isrc(isrc):
     while(not success):
         try:
             res = deezerc.request("GET", "track/isrc:" + isrc, resource_type=deezer.Track)
-            res = res.as_dict()
             success = True
         except Exception as e:
-            if("quota" in e.lower()):
+            if("quota" in str(e).lower()):
+                time.sleep(1)
+            else:
+                res = None
+                break
+    return res
+
+def deezer_id(id):
+    success = False
+    while(not success):
+        try:
+            res = deezerc.request("GET", "track/" + id, resource_type=deezer.Track)
+            success = True
+        except Exception as e:
+            if("quota" in str(e).lower()):
                 time.sleep(1)
             else:
                 res = None
@@ -331,7 +348,7 @@ def deezer_album(query):
                 if(res['record_type'] == "single"):
                     res = deezerc.request("GET", res['tracklist'].replace("https://api.deezer.com/", ""))
                     if(len(res) > 0):
-                        res = res[0].as_dict()
+                        res = res[0]
                     else:
                         res = None
                 else:
@@ -340,11 +357,50 @@ def deezer_album(query):
                 res = None
             success = True
         except Exception as e:
-            if("quota" in e.lower()):
+            if("quota" in str(e).lower()):
                 time.sleep(1)
             else:
                 res = None
                 break
+    return res
+
+def check_links(desc):
+    res = None
+    x = desc.split()
+    for i in range(len(x)):
+        domain = re.sub(r"(https?:\/\/)?([w]{3}\.)?(\w*.\w*)([\/\w]*)", "\\3", x[i])
+        if(domain.endswith("lnk.to")):
+            res = x[i]
+            break
+
+    if(res == None):
+        return res
+
+    page = requests.get(res)
+    res = [None, None]
+
+    soup = BeautifulSoup(page.content, "html.parser")
+    elems = soup.find_all("div", class_="music-service-list__item")
+
+    for elem in elems:
+        link_elem = elem.find("a", class_="music-service-list__link")
+        link = link_elem["href"]
+        domain = re.sub(r"(https?:\/\/)?([w]{3}\.)?(\w*.\w*)([\/\w]*)", "\\3", link)
+        if(domain.startswith("deezer.com")):
+            if("?" in link):
+                link = link.split("?")[0]
+            res = [link.replace("https://www.deezer.com/track/", ""), res[1]]
+        elif(domain.startswith("open.spotify.com")):
+            # Deezer as a platform wasn't found, but we can find the ISRC from here
+            # TODO: Janky solution, replace
+            infojson = " ".join(soup.find('script', id="linkfire-tracking-data").string.split()) # Find <script> object and remove unnecessary whitespace from the string
+            infojson = (infojson.replace("window.linkfire.tracking = { version: 1, parameters: ", "").replace(", required: {}, performance: {}, advertising: {}, additionalParameters: { subscribe: [], }, visitTrackingEvent: \"pageview\" };", "")) # Clear out non-JSON part of the <script>
+            infojson = json.loads(infojson) # JSONify it
+            res = [res[0], infojson['isrcs'][0]]
+
+    if((res[0] == None) and (res[1] == None)):
+        res = None
+
     return res
 
 total = 1
@@ -353,10 +409,11 @@ not_found = 0
 
 src_names = {
     0: "DeezerTrackMethod0",
-    1: "DeezerTrackMethod1",
-    2: "DeezerTrackMethod2",
-    3: "DeezerAlbum",
-    4: "Shazam"
+    1: "DescriptionLinkParse",
+    2: "DeezerTrackMethod1",
+    3: "DeezerTrackMethod2",
+    4: "DeezerAlbum",
+    5: "Shazam"
 }
 
 def get_src_name(src):
@@ -367,16 +424,37 @@ def get_src_name(src):
 
 def out(res, deezer_result, src, video):
     # Result ranking
-    highest = ["", 0.0]
-    for dres in deezer_result:
-        dres = dres.as_dict()
-        deezersrc = filter_data(dres['artist']['name'], dres['title']).lower()
+    try:
+        iterator = iter(deezer_result)
+    except TypeError:
+        deezer_result = deezer_result.as_dict()
+        deezersrc = filter_data(deezer_result['artist']['name'], deezer_result['title']).lower()
         ressrc = res.lower()
         compare = similar(deezersrc, ressrc)
-        if(compare > highest[1]):
-            highest[0] = dres
-            highest[1] = compare
-    deezer_result = highest[0]
+    else:
+        highest = ["", 0.0]
+        tsuccess = False
+        while(not tsuccess):
+            try:
+                for dres in deezer_result:
+                    try:
+                        dres['title']
+                    except TypeError:
+                        dres = dres.as_dict()
+                    deezersrc = filter_data(dres['artist']['name'], dres['title']).lower()
+                    ressrc = res.lower()
+                    compare = similar(deezersrc, ressrc)
+                    if(compare > highest[1]):
+                        highest[0] = dres
+                        highest[1] = compare
+                deezer_result = highest[0]
+                tsuccess = True
+            except Exception as e:
+                if("quota" in str(e).lower()):
+                    time.sleep(1)
+                else:
+                    return None
+        compare = highest[1]
 
     global success, not_found
     
@@ -450,6 +528,20 @@ def handle_res(video, i = 0):
                 else:
                     prnt("Not using DeezerTrackMethod0, because -dt switch was used")
             elif(src == 1):
+                if(args.no_links == False):
+                    lres = check_links(video['description'].replace("\n", " "))
+                    if(lres != None):
+                        if(lres[0] != None):
+                            lres = lres[0]
+                            deezer_result = deezer_id(lres)
+                        elif(lres[1] != None):
+                            lres = lres[1]
+                            deezer_result = deezer_isrc(lres)
+                        if(deezer_result != None):
+                            success = True
+                else:
+                    prnt("Not using DescriptionLinkParse, because -l switch was used")
+            elif(src == 2):
                 if(args.no_deezertrack == False):
                     res = parse_video(video, 1)
                     deezer_result = converto_deezer(res)
@@ -457,7 +549,7 @@ def handle_res(video, i = 0):
                         success = True
                 else:
                     prnt("Not using DeezerTrackMethod1, because -dt switch was used")
-            elif(src == 2):
+            elif(src == 3):
                 if(args.no_deezertrack == False):
                     res = parse_video(video, 2)
                     deezer_result = converto_deezer(res)
@@ -465,7 +557,7 @@ def handle_res(video, i = 0):
                         success = True
                 else:
                     prnt("Not using DeezerTrackMethod2, because -dt switch was used")
-            elif(src == 3):
+            elif(src == 4):
                 if(args.no_deezeralbum == False):
                     res = parse_video(video)
                     deezer_result = deezer_album(res)
@@ -473,7 +565,7 @@ def handle_res(video, i = 0):
                         success = True
                 else:
                     prnt("Not using DeezerAlbum, because -da switch was used")
-            elif(src == 4):
+            elif(src == 5):
                 if(args.no_shazam == False):
                     prnt("Please wait, this process might take a while...")
                     res = parse_video(video)
@@ -503,7 +595,7 @@ def handle_res(video, i = 0):
             if(success):
                 if(out(res, deezer_result, src, video) == None):
                     success = False
-            if(not success):
+            if(success == False):
                 if(src < len(src_names)):
                     prnt("[WARN] Couldn't find using " + get_src_name(src))
                 src += 1
