@@ -78,7 +78,7 @@ class deezer_platform:
                     break
         return res
 
-    def check_yt_res(original, result, query):
+    def check_yt_res(original, result, query, search_ranking = False):
         if(result == None):
             return None
         
@@ -137,6 +137,8 @@ class deezer_platform:
                             else:
                                 if(certainty > most_certain[1]):
                                     most_certain = [result_item, certainty, 0.0]
+                        if(not search_ranking):
+                            break
                     certainty = most_certain[1] if most_certain[2] == 0.0 else ((most_certain[1] + most_certain[2])/2)
                     return [certainty, result_item]
                     iterate_success = True
