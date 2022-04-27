@@ -27,12 +27,13 @@ parser = argparse.ArgumentParser(description="yt2deezer", formatter_class=argpar
 
 parser.add_argument("-r", "--reset", default=False, help="Reset output file's and config's contents", action='store_true')
 
-parser.add_argument("-y", "--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
+parser.add_argument("--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
+parser.add_argument("--experimental-search-ranking", default=False, help="[EXPERIMENTAL] Rank searches when querying", action='store_true')
 
-parser.add_argument("-s", "--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
-parser.add_argument("-l", "--no-links", default=False, help="Disable DescriptionLinkParse as a source", action='store_true')
-parser.add_argument("-dt", "--no-deezertrack", default=False, help="Disable DeezerTrack as a source", action='store_true')
-parser.add_argument("-da", "--no-deezeralbum", default=False, help="Disable DeezerAlbum as a source", action='store_true')
+parser.add_argument("--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
+parser.add_argument("--no-links", default=False, help="Disable DescriptionLinkParse as a source", action='store_true')
+parser.add_argument("--no-deezertrack", default=False, help="Disable DeezerTrack as a source", action='store_true')
+parser.add_argument("--no-deezeralbum", default=False, help="Disable DeezerAlbum as a source", action='store_true')
 
 parser.add_argument("--hook", default=False, help="Special argument", action='store_true')
 
@@ -399,7 +400,7 @@ def handle_res(video, i = 0):
                     """)
                     break
                 if(tsuccess):
-                    deezer_check = deezer_platform.check_yt_res(video, deezer_result, res)
+                    deezer_check = deezer_platform.check_yt_res(video, deezer_result, res, args.experimental_search_ranking)
                     if(deezer_check == None or deezer_check == False):
                         print(deezer_check)
                         tsuccess = False
