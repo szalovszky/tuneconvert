@@ -6,6 +6,11 @@ class utils:
     def similar(a, b):
         return SequenceMatcher(None, a, b).ratio()
 
+    def unique_list(l):
+        ulist = []
+        [ulist.append(x) for x in l if x not in ulist]
+        return ulist
+
     def filter_data(artist, title, filter_list, filter_word_list, remove_year = True, remove_emojis = True):
         # Convert all fields to lowercase (search engines don't like cased queries for some reason and it doesn't need to be capitalized anyways)
         artist = artist.lower()
@@ -47,11 +52,10 @@ class utils:
         artist = " ".join(artist.split())
 
         # Cut out Artist from Title field and Cut out unnecessary spaces from the Title field
-        x = title.split()
+        x = artist.split()
         for i in range(len(x)):
-            if((utils.similar(artist, x[i]) > .25) and (artist.split()[0] in x[i])):
-                x[i] = ""
-        title = " ".join(x)
+            if(len(x[i]) > 3):
+                title.replace(x[i], "")
 
         title = title.replace(artist + " - ", "")
         title = title.replace(artist, "")
@@ -62,6 +66,10 @@ class utils:
             for i in range(len(x)):
                 x[i] = re.sub(r"^(19|[2-9][0-9])\d{2}$", '', x[i])
             title = " ".join(x)
+
+        # Remove duplicate words
+        artist = ' '.join(utils.unique_list(artist.split()))
+        title = ' '.join(utils.unique_list(title.split()))
 
         # Remove emojis from the Artist and Title field
         if(remove_emojis):
