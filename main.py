@@ -28,6 +28,8 @@ parser = argparse.ArgumentParser(description="yt2deezer", formatter_class=argpar
 parser.add_argument("-r", "--reset", default=False, help="Reset output file's and config's contents", action='store_true')
 
 parser.add_argument("--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
+parser.add_argument("--force-emojis", default=False, help="Don't filter emojis out of metadata", action='store_true')
+
 parser.add_argument("--experimental-search-ranking", default=False, help="[EXPERIMENTAL] Rank searches when querying", action='store_true')
 
 parser.add_argument("--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
@@ -219,8 +221,8 @@ def parse_video(video, forceMethod = 0):
     elif(forceMethod == 2):
         artist = ""
         title = video['title']
-    
-    return utils.filter_data(artist, title, constants.dontneed, constants.dontneed_wholeword, not args.force_year)
+
+    return utils.filter_data(artist, title, constants.dontneed, constants.dontneed_wholeword, not args.force_year, not args.force_emojis)
 
 def yt_is_mix(video):
     #is_mix = ((video) Or (video))
