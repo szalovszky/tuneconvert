@@ -1,11 +1,12 @@
 import re
 from difflib import SequenceMatcher
+import emoji
 
 class utils:
     def similar(a, b):
         return SequenceMatcher(None, a, b).ratio()
 
-    def filter_data(artist, title, filter_list, filter_word_list, force_year = False):
+    def filter_data(artist, title, filter_list, filter_word_list, remove_year = True, remove_emojis = True):
         # Convert all fields to lowercase (search engines don't like cased queries for some reason and it doesn't need to be capitalized anyways)
         artist = artist.lower()
         title = title.lower()
@@ -56,11 +57,16 @@ class utils:
         title = title.replace(artist, "")
 
         # Replace Year in titles (very common and confuses most search algos, but sometimes it may be relevant to keep it, so use the -y arg to skip this)
-        if(force_year):
+        if(remove_year):
             x = title.split()
             for i in range(len(x)):
                 x[i] = re.sub(r"^(19|[2-9][0-9])\d{2}$", '', x[i])
             title = " ".join(x)
+
+        # Remove emojis from the Artist and Title field
+        if(remove_emojis):
+            artist = emoji.replace_emoji(artist, "")
+            title = emoji.replace_emoji(title, "")
 
         # Lastly, return the result
         return [artist, title]
