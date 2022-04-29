@@ -15,11 +15,12 @@ dontneed_wholeword = [
 
 src_names = {
     0: "DeezerTrackMethod0",
-    1: "DescriptionLinkParse",
-    2: "DeezerTrackMethod1",
-    3: "DeezerTrackMethod2",
-    4: "DeezerAlbum",
-    5: "Shazam"
+    1: "DeezerTrackMethod0_FA",
+    2: "DescriptionLinkParse",
+    3: "DeezerTrackMethod1",
+    4: "DeezerTrackMethod2",
+    5: "DeezerAlbum",
+    6: "Shazam"
 }
 
 def src_name(src):

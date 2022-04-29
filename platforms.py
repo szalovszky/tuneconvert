@@ -1,3 +1,5 @@
+import traceback
+import time
 import deezer
 
 import constants
@@ -19,7 +21,7 @@ class deezer_platform:
                 if("quota" in str(e).lower()):
                     time.sleep(1)
                 else:
-                    print(e)
+                    print(traceback.format_exc())
                     res = None
                     break
         return res
@@ -34,6 +36,7 @@ class deezer_platform:
                 if("quota" in str(e).lower()):
                     time.sleep(1)
                 else:
+                    print(traceback.format_exc())
                     res = None
                     break
         return res
@@ -48,6 +51,7 @@ class deezer_platform:
                 if("quota" in str(e).lower()):
                     time.sleep(1)
                 else:
+                    print(traceback.format_exc())
                     res = None
                     break
         return res
@@ -74,11 +78,12 @@ class deezer_platform:
                 if("quota" in str(e).lower()):
                     time.sleep(1)
                 else:
+                    print(traceback.format_exc())
                     res = None
                     break
         return res
 
-    def check_yt_res(original, result, query, search_ranking = False):
+    def check_yt_res(original, result, query, search_ranking = False, featured_artists = False):
         if(result == None):
             return None
         
@@ -87,26 +92,39 @@ class deezer_platform:
         try:
             iterator = iter(result)
         except TypeError:
+            result_item = result
             try:
-                result = result.as_dict()
+                result_item = result_item.as_dict()
             except:
                 pass
             if(seperate):
-                artist_filtered = utils.filter_data(result_item['artist']['name'], "", constants.dontneed, constants.dontneed_wholeword)[0]
+                artist = result_item['artist']['name']
+                if(featured_artists):
+                    if("contributors" not in result_item):
+                        result_item = platforms.deezer_platform.trackid(str(result_item['id']))
+                        try:
+                            result_item = result_item.as_dict()
+                        except:
+                            pass
+                    artist_sum = ""
+                    for m_artist in result_item['contributors']:
+                        artist_sum += utils.filter_data(m_artist['name'], "", constants.dontneed, constants.dontneed_wholeword)[0] + " "
+                    artist = ' '.join(utils.unique_list(artist_sum.split()))
+                artist_filtered = utils.filter_data(artist, "", constants.dontneed, constants.dontneed_wholeword)[0]
                 title_filtered = utils.filter_data("", result_item['title'], constants.dontneed, constants.dontneed_wholeword)[1]
                 artist_certainty = utils.similar(query[0], artist_filtered)
                 title_certainty = utils.similar(query[1], title_filtered)
                 if((artist_certainty < constants.similarity_threshold) or (title_certainty < constants.similarity_threshold)):
                     return False
                 else:
-                    return [((artist_certainty + title_certainty)/2), result]
+                    return [((artist_certainty + title_certainty)/2), result_item]
             else:
-                result_filtered = " ".join(utils.filter_data(result['artist']['name'], result['title'], constants.dontneed, constants.dontneed_wholeword))
+                result_filtered = " ".join(utils.filter_data(result_item['artist']['name'], result_item['title'], constants.dontneed, constants.dontneed_wholeword))
                 certainty = utils.similar(query, result_filtered)
                 if(certainty < constants.similarity_threshold):
                     return False
                 else:
-                    return [certainty, result]
+                    return [certainty, result_item]
         else:
             most_certain = ["", 0.0, 0.0]
             iterate_success = False
@@ -118,7 +136,19 @@ class deezer_platform:
                         except:
                             pass
                         if(seperate):
-                            artist_filtered = utils.filter_data(result_item['artist']['name'], "", constants.dontneed, constants.dontneed_wholeword)[0]
+                            artist = result_item['artist']['name']
+                            if(featured_artists):
+                                if("contributors" not in result_item):
+                                    result_item = platforms.deezer_platform.trackid(str(result_item['id']))
+                                    try:
+                                        result_item = result_item.as_dict()
+                                    except:
+                                        pass
+                                artist_sum = ""
+                                for m_artist in result_item['contributors']:
+                                    artist_sum += utils.filter_data(m_artist['name'], "", constants.dontneed, constants.dontneed_wholeword)[0] + " "
+                                artist = ' '.join(utils.unique_list(artist_sum.split()))
+                            artist_filtered = utils.filter_data(artist, "", constants.dontneed, constants.dontneed_wholeword)[0]
                             title_filtered = utils.filter_data("", result_item['title'], constants.dontneed, constants.dontneed_wholeword)[1]
                             artist_certainty = utils.similar(query[0], artist_filtered)
                             title_certainty = utils.similar(query[1], title_filtered)
@@ -146,5 +176,5 @@ class deezer_platform:
                     if("quota" in str(e).lower()):
                         time.sleep(1)
                     else:
-                        print(e)
+                        print(traceback.format_exc())
                         return None

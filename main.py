@@ -25,8 +25,6 @@ from utils import utils
 
 parser = argparse.ArgumentParser(description="yt2deezer", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument("-r", "--reset", default=False, help="Reset output file's and config's contents", action='store_true')
-
 parser.add_argument("--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
 parser.add_argument("--force-emojis", default=False, help="Don't filter emojis out of metadata", action='store_true')
 
@@ -320,6 +318,7 @@ def handle_res(video, i = 0):
                     src_name = constants.src_name(src)
                     prnt("[INFO] Searching using " + src_name + "...")
                     hookout(f"info:checking_src:{src_name}")
+                featured_artist = False
                 if(src == 0):
                     if(args.no_deezertrack == False):
                         parsed_video = parse_video(video)
@@ -331,6 +330,17 @@ def handle_res(video, i = 0):
                     else:
                         prnt("Not using DeezerTrackMethod0, because -dt switch was used")
                 elif(src == 1):
+                    if(args.no_deezertrack == False):
+                        parsed_video = parse_video(video)
+                        res = " ".join(parsed_video)
+                        deezer_result = deezer_platform.search_track(res)
+                        res = parsed_video
+                        featured_artist = True
+                        if(deezer_result != None):
+                            tsuccess = True
+                    else:
+                        prnt("Not using DeezerTrackMethod0, because -dt switch was used")
+                elif(src == 2):
                     if(args.no_links == False):
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
@@ -346,7 +356,7 @@ def handle_res(video, i = 0):
                                 tsuccess = True
                     else:
                         prnt("Not using DescriptionLinkParse, because -l switch was used")
-                elif(src == 2):
+                elif(src == 3):
                     if(args.no_deezertrack == False):
                         parsed_video = parse_video(video, 1)
                         res = " ".join(parsed_video)
@@ -355,7 +365,7 @@ def handle_res(video, i = 0):
                             tsuccess = True
                     else:
                         prnt("Not using DeezerTrackMethod1, because -dt switch was used")
-                elif(src == 3):
+                elif(src == 4):
                     if(args.no_deezertrack == False):
                         parsed_video = parse_video(video, 2)
                         res = " ".join(parsed_video)
@@ -364,7 +374,7 @@ def handle_res(video, i = 0):
                             tsuccess = True
                     else:
                         prnt("Not using DeezerTrackMethod2, because -dt switch was used")
-                elif(src == 4):
+                elif(src == 5):
                     if(args.no_deezeralbum == False):
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
@@ -373,7 +383,7 @@ def handle_res(video, i = 0):
                             tsuccess = True
                     else:
                         prnt("Not using DeezerAlbum, because -da switch was used")
-                elif(src == 5):
+                elif(src == 6):
                     if(args.no_shazam == False):
                         prnt("Please wait, this process might take a while...")
                         parsed_video = parse_video(video)
@@ -402,7 +412,7 @@ def handle_res(video, i = 0):
                     """)
                     break
                 if(tsuccess):
-                    deezer_check = deezer_platform.check_yt_res(video, deezer_result, res, args.experimental_search_ranking)
+                    deezer_check = deezer_platform.check_yt_res(video, deezer_result, res, args.experimental_search_ranking, featured_artist)
                     if(deezer_check == None or deezer_check == False):
                         print(deezer_check)
                         tsuccess = False
@@ -490,26 +500,28 @@ else:
     exit()
 
 overviewfile.write("""<style>
+* {
+    font-family: arial, sans-serif;
+}
 table {
-  font-family: arial, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
+    border-collapse: collapse;
+    width: 100%;
 }
-
 td, th {
-  border: 1px solid #dddddd;
-  text-align: left;
-  padding: 8px;
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
 }
-
 tr:nth-child(even) {
-  background-color: #dddddd;
+    background-color: #dddddd;
 }
 </style>
+<title>Overview</title>
 <meta charset="UTF-8">
 <meta name="overview-version" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<h1>Result <a href='out.txt'>(open)</a></h1>
+<h1>Result</h1>
+<h3>""" + run_id + """</h3>
 <table>
 <tr>
     <th>Status</th>
