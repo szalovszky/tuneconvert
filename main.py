@@ -484,11 +484,6 @@ def handle_yt(url):
     failfile.close()
     unavailablefile.close()
 
-if(args.reset == True):
-    # Delete output file
-    if os.path.exists("out.txt"):
-        os.remove("out.txt")
-
 hookout(f"start:{run_id}")
 platform = args.destination
 if("deezer" in platform):
