@@ -22,7 +22,7 @@ class utils:
         title = re.sub(r'\|[\s\S]*\|', '', title)
 
         # Fix common problems with the artist field
-        artist = artist.replace("/", " ").replace(";", " ")
+        artist = artist.replace("/", " ").replace(";", " ").replace(" - Topic", "")
 
         # Apply basic filtering
         artist = artist.replace(", ", " ").replace(" x ", " ").replace(";", " ")
