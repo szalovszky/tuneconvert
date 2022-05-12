@@ -1,6 +1,9 @@
 import re
 from difflib import SequenceMatcher
 import emoji
+import json
+import requests
+from bs4 import BeautifulSoup
 
 class utils:
     def similar(a, b):
@@ -78,6 +81,48 @@ class utils:
 
         # Lastly, return the result
         return [artist, title]
+
+    def check_links(desc):
+        try:
+            res = None
+            x = desc.split()
+            for i in range(len(x)):
+                domain = re.sub(r"(https?:\/\/)?([w]{3}\.)?(\w*.\w*)([\/\w]*)", "\\3", x[i])
+                if(domain.endswith("lnk.to")):
+                    res = x[i]
+                    break
+
+            if(res == None):
+                return res
+
+            page = requests.get(res)
+            res = [None, None]
+
+            soup = BeautifulSoup(page.content, "html.parser")
+            elems = soup.find_all("div", class_="music-service-list__item")
+
+            for elem in elems:
+                link_elem = elem.find("a", class_="music-service-list__link")
+                link = link_elem["href"]
+                domain = re.sub(r"(https?:\/\/)?([w]{3}\.)?(\w*.\w*)([\/\w]*)", "\\3", link)
+                if(domain.startswith("deezer.com")):
+                    if("?" in link):
+                        link = link.split("?")[0]
+                    res = [link.replace("https://www.deezer.com/track/", ""), res[1]]
+                elif(domain.startswith("open.spotify.com")):
+                    # Deezer as a platform wasn't found, but we can find the ISRC from here
+                    # TODO: Janky solution, replace
+                    infojson = " ".join(soup.find('script', id="linkfire-tracking-data").string.split()) # Find <script> object and remove unnecessary whitespace from the string
+                    infojson = (infojson.replace("window.linkfire.tracking = { version: 1, parameters: ", "").replace(", required: {}, performance: {}, advertising: {}, additionalParameters: { subscribe: [], }, visitTrackingEvent: \"pageview\" };", "")) # Clear out non-JSON part of the <script>
+                    infojson = json.loads(infojson) # JSONify it
+                    res = [res[0], infojson['isrcs'][0]]
+
+            if((res[0] == None) and (res[1] == None)):
+                res = None
+
+            return res
+        except:
+            return None
 
     def gen_table_row(status = "-", engine = "-", certainty = "-", original = "-", found = "-", query = "-"):
         row = "<tr>"
