@@ -5,6 +5,8 @@ import json
 import requests
 from bs4 import BeautifulSoup
 
+import settings
+
 class utils:
     def similar(a, b):
         return SequenceMatcher(None, a, b).ratio()
@@ -14,7 +16,7 @@ class utils:
         [ulist.append(x) for x in l if x not in ulist]
         return ulist
 
-    def filter_data(artist, title, filter_list, filter_word_list, remove_year = True, remove_emojis = True):
+    def filter_data(artist, title, filter_list, filter_word_list):
         # Convert all fields to lowercase (search engines don't like cased queries for some reason and it doesn't need to be capitalized anyways)
         artist = artist.lower()
         title = title.lower()
@@ -29,7 +31,7 @@ class utils:
 
         # Apply basic filtering
         artist = artist.replace(", ", " ").replace(" x ", " ").replace(";", " ")
-        title = title.replace(", ", " ").replace(" x ", " ")
+        title = title.replace(", ", " ").replace(" x ", " ").replace(" ", " ")
 
         # Apply advanced filtering by replacing every instance of filtered words
         for item in filter_list:
@@ -51,20 +53,11 @@ class utils:
                     x[i] = ""
         title = " ".join(x)
 
-        # Cut out unnecessary spaces from the Artist field
-        artist = " ".join(artist.split())
-
-        # Cut out Artist from Title field and Cut out unnecessary spaces from the Title field
-        x = artist.split()
-        for i in range(len(x)):
-            if(len(x[i]) > 3):
-                title.replace(x[i], "")
-
         title = title.replace(artist + " - ", "")
         title = title.replace(artist, "")
 
         # Replace Year in titles (very common and confuses most search algos, but sometimes it may be relevant to keep it, so use the -y arg to skip this)
-        if(remove_year):
+        if(not settings.settings.force_year):
             x = title.split()
             for i in range(len(x)):
                 x[i] = re.sub(r"^(19|[2-9][0-9])\d{2}$", '', x[i])
@@ -75,9 +68,23 @@ class utils:
         title = ' '.join(utils.unique_list(title.split()))
 
         # Remove emojis from the Artist and Title field
-        if(remove_emojis):
+        if(not settings.settings.force_emojis):
             artist = emoji.replace_emoji(artist, "")
             title = emoji.replace_emoji(title, "")
+
+        # Cut out Unicode characters from the Title field
+        if(not settings.settings.force_unicode):
+            title = re.sub(r'[^a-zA-Z0-9 ]', '', title)
+
+        # Cut out unnecessary spaces from the Artist field
+        artist = " ".join(artist.split())
+
+        # Cut out Artist from Title field and Cut out unnecessary spaces from the Title field
+        x = artist.split()
+        for i in range(len(x)):
+            if(len(x[i]) > 3):
+                title.replace(x[i], "")
+        title = " ".join(title.split())
 
         # Lastly, return the result
         return [artist, title]
