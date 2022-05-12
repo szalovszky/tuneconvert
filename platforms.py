@@ -157,7 +157,7 @@ class deezer_platform:
                             else:
                                 if(artist_certainty > most_certain[1]):
                                     most_certain = [result_item, artist_certainty, title_certainty]
-                                if((artist_certainty > most_certain[1]) and (title > most_certain[2])):
+                                if((artist_certainty > most_certain[1]) and (title_certainty > most_certain[2])):
                                     most_certain = [result_item, artist_certainty, title_certainty]
                         else:
                             result_filtered = " ".join(utils.filter_data(result_item['artist']['name'], result_item['title'], constants.dontneed, constants.dontneed_wholeword))

@@ -284,29 +284,11 @@ def handle_res(video, i = 0):
                 prnt("======")
                 prnt("Video not found at index " + str(i))
                 failfile.write("fatalerror:" + str(i) + "\n")
-                overviewfile.write("""
-                    <tr>
-                        <td>Video not found</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                    </tr>
-                """)
+                overviewfile.write(utils.gen_table_row(status="Video not found"))
             else:
                 hookout(f"error:general_error")
                 failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-                overviewfile.write("""
-                    <tr>
-                        <td>Res error</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
-                        <td>-</td>
-                        <td>-</td>
-                    </tr>
-                """)
+                overviewfile.write(utils.gen_table_row(status="Res error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>"))
         else:
             hookout(f"info:checking:{video['title']}")
             prnt("=== " + video['title'] + " ===")
@@ -400,16 +382,8 @@ def handle_res(video, i = 0):
                     not_found += 1
                     failfile.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
                     outfile.write("https://youtu.be/" + video['id'] + "\n")
-                    overviewfile.write("""
-                        <tr>
-                            <td>Not found</td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
-                            <td>-</td>
-                            <td>""" + str(res) + """</td>
-                        </tr>
-                    """)
+                    overviewfile.write(
+                        utils.gen_table_row(status="Not found", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>", query=str(res)))
                     break
                 if(tsuccess):
                     deezer_check = deezer_platform.check_yt_res(video, deezer_result, res, args.experimental_search_ranking, featured_artist)
@@ -424,16 +398,8 @@ def handle_res(video, i = 0):
                             prnt(f"[SUCCESS] [{formatted_certainty}% - {constants.src_name(src)}] {deezer_res['artist']['name']} - {deezer_res['title']}")
                             success += 1
                             outfile.write(deezer_res['link'] + "\n")
-                            overviewfile.write("""
-                                <tr>
-                                    <td>Success</td>
-                                    <td>""" + constants.src_name(src) + """</td>
-                                    <td>""" + formatted_certainty + """%</td>
-                                    <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
-                                    <td><a target='_blank' href='""" + deezer_res['link'] + """'>""" + deezer_res['artist']['name'] + " - " + deezer_res['title'] + """</a></td>
-                                    <td>""" + str(res) + """</td>
-                                </tr>
-                            """)
+                            overviewfile.write(
+                                utils.gen_table_row(status="Success", engine=constants.src_name(src), certainty=formatted_certainty, original="<a target='_blank' href='https://youtu.be/""" + video['id'] + "'>""" + video['title'] + "</a>", found="<a target='_blank' href='" + deezer_res['link'] + "'>" + deezer_res['artist']['name'] + " - " + deezer_res['title'] + "</a>", query=str(res)))
                         else:
                             tsuccess = False
                 if(not tsuccess):
@@ -446,16 +412,8 @@ def handle_res(video, i = 0):
         prnt(e)
         failfile.write("handleerror:" + str(i) + "\n")
         hookout(f"error:handling_error")
-        overviewfile.write("""
-            <tr>
-                <td>Handling error</td>
-                <td>-</td>
-                <td>-</td>
-                <td><a target='_blank' href='https://youtu.be/""" + video['id'] + """'>""" + video['title'] + """</a></td>
-                <td>-</td>
-                <td>-</td>
-            </tr>
-        """)
+        overviewfile.write(
+            utils.gen_table_row(status="Handling error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>""" + video['title'] + "</a>"))
 
 def handle_yt(url):
     global success, not_found, total

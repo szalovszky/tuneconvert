@@ -78,12 +78,14 @@ class utils:
 
         # Lastly, return the result
         return [artist, title]
-    
-    def compare_res(original_link, result_metadata, result_link, certainty, src_engine):
-        res_str = f"[{round(certainty*100, 2)}% - {src_name(src_engine)}] {result_metadata[0]} - {result_metadata[1]}"
-        if(certainty < similarity_threshold):
-            return None
-        else:
-            res_str = "[SUCCESS] " + res_str
-            prnt(res_str)
-            return certainty
+
+    def gen_table_row(status = "-", engine = "-", certainty = "-", original = "-", found = "-", query = "-"):
+        row = "<tr>"
+        row += f"<td>{status}</td>"
+        row += f"<td>{engine}</td>"
+        row += f"<td>{certainty}</td>"
+        row += f"<td>{original}</td>"
+        row += f"<td>{found}</td>"
+        row += f"<td>{query}</td>"
+        row += "</tr>"
+        return row
