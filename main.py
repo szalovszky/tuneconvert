@@ -270,7 +270,6 @@ def handle_res(video, i=0):
                     if(not settings.settings.no_deezertrack):
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
-                        print(res)
                         deezer_result = deezer_platform.search_track(res)
                         res = parsed_video
                         if(deezer_result is not None):
