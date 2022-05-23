@@ -8,13 +8,15 @@ import hashlib
 import shutil
 import json
 import asyncio
+import sys
+import traceback
 
 import yt_dlp
 import ffmpeg
 from shazamio import Shazam
 
 import constants
-from platforms import *
+from platforms import ddg_platform, startpage_platform, deezer_platform
 from utils import utils
 import settings
 
@@ -52,12 +54,12 @@ h = hashlib.new('md5')
 h.update(run_id)
 run_id = h.hexdigest()
 
-out_dir = "output/"
-working_dir = out_dir + run_id + "/"
+output_dir = "output/"
+working_dir = f"{output_dir}{run_id} /"
 temp_dir = working_dir + ".temp/"
 
-if(not os.path.exists(out_dir)):
-    os.mkdir(out_dir)
+if(not os.path.exists(output_dir)):
+    os.mkdir(output_dir)
 os.mkdir(working_dir)
 os.mkdir(temp_dir)
 
@@ -65,26 +67,29 @@ logging.basicConfig(filename=working_dir + 'log.txt', filemode='w', encoding='ut
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-overviewfile = open(working_dir + 'overview.html', 'w', encoding="utf-8")
-outfile = open(working_dir + 'out.txt', 'w', encoding="utf-8")
+file_overview = open(working_dir + 'output.html', 'w', encoding="utf-8")
+file_output = open(working_dir + 'output.txt', 'w', encoding="utf-8")
+file_output_json = open(working_dir + 'output.json', 'w', encoding="utf-8")
 
-failfile = open(working_dir + 'failed.txt', 'w', encoding="utf-8")
-unavailablefile = open(working_dir + 'unavailable.txt', 'w', encoding="utf-8")
-optionsfile = open(working_dir + 'options.json', 'w', encoding="utf-8")
+file_fail = open(working_dir + 'failed.txt', 'w', encoding="utf-8")
+file_unavailable = open(working_dir + 'unavailable.txt', 'w', encoding="utf-8")
+file_options = open(working_dir + 'options.json', 'w', encoding="utf-8")
+
 
 def prnt(string):
     global logger
     print(string)
     logger.info(string)
 
+
 def hookout(string):
     if(settings.settings.hook):
         print(f"hook>{string}")
 
+
 class normallogger:
     def debug(self, msg):
-        # For compatibility with youtube-dl, both debug and info are passed into debug
-        # You can distinguish them by the prefix '[debug] '
+        # For compatibility with youtube-dl
         if msg.startswith('[debug] '):
             pass
         else:
@@ -98,8 +103,9 @@ class normallogger:
 
     def error(self, msg):
         if(("removed" in msg) or ("unavailable" in msg)):
-            unavailablefile.write(msg + "\n")
+            file_unavailable.write(msg + "\n")
         prnt(msg)
+
 
 class dllogger:
     def debug(self, msg):
@@ -119,22 +125,23 @@ class dllogger:
     def error(self, msg):
         prnt(msg)
 
+
 def my_hook(d):
     if d['status'] == 'downloading':
-        print ("downloading "+ str(round(float(d['downloaded_bytes'])/float(d['total_bytes'])*100,1))+"%")
+        print("downloading " + str(round(float(d['downloaded_bytes'])/float(d['total_bytes'])*100,1))+"%")
     if d['status'] == 'finished':
-        filename=d['filename']
+        filename = d['filename']
         print(filename)
+
 
 async def shazam_yt(url):
     ydl_opts = {
         'format': 'bestaudio/best',
         'postprocessors': [{
-            'key': 'SponsorBlock', 
+            'key': 'SponsorBlock',
             'categories': ['music_offtopic']
-        },
-        {
-            'key': 'ModifyChapters', 
+        }, {
+            'key': 'ModifyChapters',
             'remove_sponsor_segments': ['music_offtopic']
         }],
         'outtmpl': temp_dir + 'audio.webm',
@@ -148,9 +155,10 @@ async def shazam_yt(url):
             shazam = Shazam()
             (ffmpeg
                 .input(temp_dir + 'audio.webm')
-                .output(temp_dir + 'audio%00005d.ogg', c='copy', map='0', segment_time='00:00:30', f='segment', reset_timestamps='1')
-                .run()
-            )
+                .output(temp_dir + 'audio%00005d.ogg',
+                        c='copy', map='0', segment_time='00:00:30',
+                        f='segment', reset_timestamps='1')
+                .run())
 
             os.remove(temp_dir + "audio.webm")
 
@@ -166,7 +174,8 @@ async def shazam_yt(url):
                     if (search):
                         if(file.endswith(".temp.concat")):
                             continue
-                        if (int(file.replace("audio", "").replace(".ogg", "").replace(temp_dir, "")) % 2 == 0):
+                        if (int(file.replace("audio", "").replace(".ogg", "")
+                                .replace(temp_dir, "")) % 2 == 0):
                             if(segment >= 12):
                                 prnt(f"Giving up after {segment} tries")
                                 break
@@ -180,7 +189,7 @@ async def shazam_yt(url):
                                     search = False
                                 else:
                                     if(last_isrc != "0"):
-                                        prnt("Last result doesn't match current result, continuing...")
+                                        prnt("Different result, continuing...")
                                     last_isrc = isrc
                             except:
                                 prnt("Segment not found.")
@@ -195,8 +204,9 @@ async def shazam_yt(url):
             return None
 loop = asyncio.get_event_loop()
 
-def parse_video(video, forceMethod = 0):
-    if(video == None):
+
+def parse_video(video, forceMethod=0):
+    if(video is None):
         return None
     if(forceMethod == 0):
         # Get Artist and Title field from YouTube
@@ -220,27 +230,31 @@ def parse_video(video, forceMethod = 0):
         artist = ""
         title = video['title']
 
-    return utils.filter_data(artist=artist, title=title, filter_list=constants.dontneed, filter_word_list=constants.dontneed_wholeword)
+    return utils.filter_data(
+            artist=artist, title=title, filter_list=constants.dontneed, 
+            filter_word_list=constants.dontneed_wholeword)
+
 
 total = 1
 success = 0
 not_found = 0
 
-def handle_res(video, i = 0):
+
+def handle_res(video, i=0):
     global success, not_found
     try:
         res = parse_video(video)
-        if(res == None):
-            if(video == None):
-                hookout(f"error:video_not_found")
+        if(res is None):
+            if(video is None):
+                hookout("error:video_not_found")
                 prnt("======")
                 prnt("Video not found at index " + str(i))
-                failfile.write("fatalerror:" + str(i) + "\n")
-                overviewfile.write(utils.gen_table_row(status="Video not found"))
+                file_fail.write("fatalerror:" + str(i) + "\n")
+                file_overview.write(utils.gen_table_row(status="Video not found"))
             else:
-                hookout(f"error:general_error")
-                failfile.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-                overviewfile.write(utils.gen_table_row(status="Res error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>"))
+                hookout("error:general_error")
+                file_fail.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+                file_overview.write(utils.gen_table_row(status="Res error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>"))
         else:
             hookout(f"info:checking:{video['title']}")
             prnt("=== " + video['title'] + " ===")
@@ -253,97 +267,98 @@ def handle_res(video, i = 0):
                     hookout(f"info:checking_src:{src_name}")
                 featured_artist = False
                 if(src == 0):
-                    if(settings.settings.no_deezertrack == False):
+                    if(not settings.settings.no_deezertrack):
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
+                        print(res)
                         deezer_result = deezer_platform.search_track(res)
                         res = parsed_video
-                        if(deezer_result != None):
+                        if(deezer_result is not None):
                             tsuccess = True
                     else:
                         prnt(f"Not using {src_name}, because it was manually turned off")
                 elif(src == 1):
-                    if(settings.settings.no_deezertrack == False):
+                    if(not settings.settings.no_deezertrack):
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
                         deezer_result = deezer_platform.search_track(res)
                         res = parsed_video
                         featured_artist = True
-                        if(deezer_result != None):
+                        if(deezer_result is not None):
                             tsuccess = True
                     else:
                         prnt(f"Not using {src_name}, because it was manually turned off")
                 elif(src == 2):
-                    if(settings.settings.no_links == False):
+                    if(not settings.settings.no_links):
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
                         lres = utils.check_links(video['description'].replace("\n", " "))
-                        if(lres != None):
-                            if(lres[0] != None):
+                        if(lres is not None):
+                            if(lres[0] is not None):
                                 lres = lres[0]
                                 deezer_result = deezer_platform.trackid(lres)
-                            elif(lres[1] != None):
+                            elif(lres[1] is not None):
                                 lres = lres[1]
                                 deezer_result = deezer_platform.isrc(lres)
-                            if(deezer_result != None):
+                            if(deezer_result is not None):
                                 tsuccess = True
                     else:
                         prnt(f"Not using {src_name}, because it was manually turned off")
                 elif(src == 3):
-                    if(settings.settings.no_startpage == False):
+                    if(not settings.settings.no_startpage):
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
                         startpage_result = startpage_platform.search_track(res, use_spotify=False)
-                        if(startpage_result != None):
+                        if(startpage_result is not None):
                             deezer_result = deezer_platform.tracklink(startpage_result)
                             tsuccess = True
                     else:
                         prnt(f"Not using {src_name}, because it was manually turned off")
                 elif(src == 4):
-                    if(settings.settings.no_deezertrack == False):
+                    if(not settings.settings.no_deezertrack):
                         parsed_video = parse_video(video, 1)
                         res = " ".join(parsed_video)
                         deezer_result = deezer_platform.search_track(res)
-                        if(deezer_result != None):
+                        if(deezer_result is not None):
                             tsuccess = True
                     else:
                         prnt(f"Not using {src_name}, because it was manually turned off")
                 elif(src == 5):
-                    if(settings.settings.no_deezertrack == False):
+                    if(not settings.settings.no_deezertrack):
                         parsed_video = parse_video(video, 2)
                         res = " ".join(parsed_video)
                         deezer_result = deezer_platform.search_track(res)
-                        if(deezer_result != None):
+                        if(deezer_result is not None):
                             tsuccess = True
                     else:
                         prnt(f"Not using {src_name}, because it was manually turned off")
                 elif(src == 6):
-                    if(settings.settings.no_deezeralbum == False):
+                    if(not settings.settings.no_deezeralbum):
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
                         deezer_result = deezer_platform.search_album(res)
-                        if(deezer_result != None):
+                        if(deezer_result is not None):
                             tsuccess = True
                     else:
                         prnt(f"Not using {src_name}, because it was manually turned off")
                 elif(src == 7):
-                    if(settings.settings.no_shazam == False):
+                    if(not settings.settings.no_shazam):
                         prnt("Please wait, this process might take a while...")
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
                         shazam = loop.run_until_complete(shazam_yt("https://youtu.be/" + video['id']))
-                        if(shazam != None):
+                        if(shazam is not None):
                             deezer_result = deezer_platform.isrc(shazam)
                             tsuccess = True
                     else:
                         prnt(f"Not using {src_name}, because it was manually turned off")
                 elif(src == 8):
-                    if(settings.settings.experimental_ddg == True):
+                    if(settings.settings.experimental_ddg):
                         prnt("Please wait, this process might take a while...")
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
                         ddg_result = ddg_platform.search_track(res, use_spotify=False)
-                        if(ddg_result != None):
+                        if(ddg_result is not None):
                             deezer_result = deezer_platform.tracklink(ddg_result)
                             tsuccess = True
                     else:
@@ -352,14 +367,14 @@ def handle_res(video, i = 0):
                     tsuccess = True
                     prnt("[ERROR] Not found " + video['title'])
                     not_found += 1
-                    failfile.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-                    outfile.write("https://youtu.be/" + video['id'] + "\n")
-                    overviewfile.write(
+                    file_fail.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
+                    file_output.write("https://youtu.be/" + video['id'] + "\n")
+                    file_overview.write(
                         utils.gen_table_row(status="Not found", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>", query=str(res)))
                     break
                 if(tsuccess):
                     deezer_check = deezer_platform.check_yt_res(video, deezer_result, res, settings.settings.experimental_search_ranking, featured_artist)
-                    if(deezer_check == None or deezer_check == False):
+                    if(deezer_check is None or not deezer_check):
                         prnt(deezer_check)
                         tsuccess = False
                     else:
@@ -369,8 +384,8 @@ def handle_res(video, i = 0):
                         if(certainty > constants.similarity_threshold):
                             prnt(f"[SUCCESS] [{formatted_certainty}% - {constants.src_name(src)}] {deezer_res['artist']['name']} - {deezer_res['title']}")
                             success += 1
-                            outfile.write(deezer_res['link'] + "\n")
-                            overviewfile.write(
+                            file_output.write(deezer_res['link'] + "\n")
+                            file_overview.write(
                                 utils.gen_table_row(status="Success", engine=constants.src_name(src), certainty=formatted_certainty, original="<a target='_blank' href='https://youtu.be/""" + video['id'] + "'>""" + video['title'] + "</a>", found="<a target='_blank' href='" + deezer_res['link'] + "'>" + deezer_res['artist']['name'] + " - " + deezer_res['title'] + "</a>", query=str(res)))
                         else:
                             tsuccess = False
@@ -381,10 +396,10 @@ def handle_res(video, i = 0):
         hookout(f"info:progress:{i+1}/{total};{not_found}")
     except Exception as e:
         prnt("Handling error at index " + str(i))
-        prnt(e)
-        failfile.write("handleerror:" + str(i) + "\n")
-        hookout(f"error:handling_error")
-        overviewfile.write(
+        prnt(traceback.format_exc())
+        file_fail.write("handleerror:" + str(i) + "\n")
+        hookout("error:handling_error")
+        file_overview.write(
             utils.gen_table_row(status="Handling error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>""" + video['title'] + "</a>"))
 
 def handle_yt(url):
@@ -392,9 +407,9 @@ def handle_yt(url):
     global loop
     ydl = yt_dlp.YoutubeDL({"ignoreerrors": True, 'logger': normallogger(), 'progress_hooks': [my_hook],})
     with ydl:
-        hookout(f"info:fetching")
+        hookout("info:fetching")
         result = ydl.extract_info(url, download=False)
-        hookout(f"info:parsing")
+        hookout("info:parsing")
         
         if 'entries' in result:
             # This is a playlist or a list of videos
@@ -410,22 +425,22 @@ def handle_yt(url):
             handle_res(video)
 
     prnt('Finished: ' + "{:.2f}".format((success/total)*100) + "% success (Total: " + str(total) + ", Not found: " + str(not_found) + ")")
-    outfile.close()
-    failfile.close()
-    unavailablefile.close()
-    optionsfile.close()
+    file_output.close()
+    file_fail.close()
+    file_unavailable.close()
+    file_options.close()
 
 hookout(f"start:{run_id}")
 platform = settings.settings.destination
 if("deezer" in platform):
     prnt("Using Deezer as Target Platform")
-    hookout(f"info:platform_target_deezer")
+    hookout("info:platform_target_deezer")
 else:
     prnt("Unsupported destination platform")
-    hookout(f"error:unsupported_target_platform")
-    exit()
+    hookout("error:unsupported_target_platform")
+    sys.exit()
 
-overviewfile.write("""<style>
+file_overview.write("""<style>
 * {
     font-family: arial, sans-serif;
 }
@@ -449,8 +464,8 @@ tr:nth-child(even) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <h1>Result</h1>
 <h3>Run ID: """ + run_id + """</h3>
-<a href='out.txt'>Output file</a> | 
-<a href='out.json'>Output JSON</a> | 
+<a href='output.txt'>Output file</a> | 
+<a href='output.json'>Output JSON</a> | 
 <a href='failed.txt'>Failed</a> | 
 <a href='unavailable.txt'>Unavailable</a> | 
 <a href='options.json'>Settings</a> | 
@@ -469,16 +484,16 @@ tr:nth-child(even) {
 </tr>""")
 dict_settings = settings.settings.__dict__
 dict_settings['version'] = constants.version
-optionsfile.write(json.dumps(dict_settings))
+file_options.write(json.dumps(dict_settings))
 url = settings.settings.URL
 if("youtu" in url):
-    hookout(f"info:platform_source_youtube")
+    hookout("info:platform_source_youtube")
     handle_yt(url)
 else:
     prnt("Unsupported source platform")
-    hookout(f"error:unsupported_source_platform")
-    exit()
+    hookout("error:unsupported_source_platform")
+    sys.exit()
 
-overviewfile.write("</table>")
+file_overview.write("</table>")
 shutil.rmtree(temp_dir)
 hookout(f"end:{run_id}")
