@@ -137,7 +137,7 @@ async def shazam_yt(url):
             'key': 'ModifyChapters', 
             'remove_sponsor_segments': ['music_offtopic']
         }],
-        'outtmpl': temp_dir + 'audio',
+        'outtmpl': temp_dir + 'audio.webm',
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
         try:
@@ -147,12 +147,12 @@ async def shazam_yt(url):
         try:
             shazam = Shazam()
             (ffmpeg
-                .input(temp_dir + 'audio')
+                .input(temp_dir + 'audio.webm')
                 .output(temp_dir + 'audio%00005d.ogg', c='copy', map='0', segment_time='00:00:30', f='segment', reset_timestamps='1')
                 .run()
             )
 
-            os.remove(temp_dir + "audio")
+            os.remove(temp_dir + "audio.webm")
 
             found_isrc = None
             last_isrc = "0"
@@ -164,6 +164,8 @@ async def shazam_yt(url):
                 if (file.startswith("audio")):
                     file = temp_dir + file
                     if (search):
+                        if(file.endswith(".temp.concat")):
+                            continue
                         if (int(file.replace("audio", "").replace(".ogg", "").replace(temp_dir, "")) % 2 == 0):
                             if(segment >= 12):
                                 prnt(f"Giving up after {segment} tries")
