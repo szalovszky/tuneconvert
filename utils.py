@@ -140,7 +140,7 @@ class utils:
         row = "<tr>"
         row += f"<td>{status}</td>"
         row += f"<td>{engine}</td>"
-        row += f"<td>{certainty}</td>"
+        row += f"<td>{certainty}%</td>"
         row += f"<td>{original}</td>"
         row += f"<td>{found}</td>"
         row += f"<td>{query}</td>"
