@@ -4,6 +4,7 @@ import emoji
 import json
 import requests
 from bs4 import BeautifulSoup
+import unicodedata
 
 import settings
 
@@ -72,6 +73,10 @@ class utils:
             artist = emoji.replace_emoji(artist, "")
             title = emoji.replace_emoji(title, "")
 
+        # Ununicode some characters
+        if(not settings.settings.force_unicode):
+            title = unicodedata.normalize('NFD', title).encode('ascii', 'ignore').decode()
+        
         # Cut out Unicode characters from the Title field
         if(not settings.settings.force_unicode):
             title = re.sub(r'[^a-zA-Z0-9 ]', '', title)
