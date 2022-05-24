@@ -8,7 +8,7 @@ from time import sleep
 import random
 
 import constants
-from utils import utils
+from utils import data, music_data
 import platforms
 import settings
 
@@ -130,19 +130,19 @@ class deezer_platform:
                             pass
                     artist_sum = ""
                     for m_artist in result_item['contributors']:
-                        artist_sum += utils.filter_data(m_artist['name'], "", constants.dontneed, constants.dontneed_wholeword)[0] + " "
-                    artist = ' '.join(utils.unique_list(artist_sum.split()))
-                artist_filtered = utils.filter_data(artist, "", constants.dontneed, constants.dontneed_wholeword)[0]
-                title_filtered = utils.filter_data("", result_item['title'], constants.dontneed, constants.dontneed_wholeword)[1]
-                artist_certainty = utils.similar(query[0], artist_filtered)
-                title_certainty = utils.similar(query[1], title_filtered)
+                        artist_sum += music_data.filter_data(m_artist['name'], "", constants.dontneed, constants.dontneed_wholeword)[0] + " "
+                    artist = ' '.join(data.unique_list(artist_sum.split()))
+                artist_filtered = music_data.filter_data(artist, "", constants.dontneed, constants.dontneed_wholeword)[0]
+                title_filtered = music_data.filter_data("", result_item['title'], constants.dontneed, constants.dontneed_wholeword)[1]
+                artist_certainty = data.similar(query[0], artist_filtered)
+                title_certainty = data.similar(query[1], title_filtered)
                 if((artist_certainty < constants.similarity_threshold) or (title_certainty < constants.similarity_threshold)):
                     return False
                 else:
                     return [((artist_certainty + title_certainty)/2), result_item]
             else:
-                result_filtered = " ".join(utils.filter_data(result_item['artist']['name'], result_item['title'], constants.dontneed, constants.dontneed_wholeword))
-                certainty = utils.similar(query, result_filtered)
+                result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], constants.dontneed, constants.dontneed_wholeword))
+                certainty = data.similar(query, result_filtered)
                 if(certainty < constants.similarity_threshold):
                     return False
                 else:
@@ -168,12 +168,12 @@ class deezer_platform:
                                         pass
                                 artist_sum = ""
                                 for m_artist in result_item['contributors']:
-                                    artist_sum += utils.filter_data(m_artist['name'], "", constants.dontneed, constants.dontneed_wholeword)[0] + " "
-                                artist = ' '.join(utils.unique_list(artist_sum.split()))
-                            artist_filtered = utils.filter_data(artist, "", constants.dontneed, constants.dontneed_wholeword)[0]
-                            title_filtered = utils.filter_data("", result_item['title'], constants.dontneed, constants.dontneed_wholeword)[1]
-                            artist_certainty = utils.similar(query[0], artist_filtered)
-                            title_certainty = utils.similar(query[1], title_filtered)
+                                    artist_sum += music_data.filter_data(m_artist['name'], "", constants.dontneed, constants.dontneed_wholeword)[0] + " "
+                                artist = ' '.join(data.unique_list(artist_sum.split()))
+                            artist_filtered = music_data.filter_data(artist, "", constants.dontneed, constants.dontneed_wholeword)[0]
+                            title_filtered = music_data.filter_data("", result_item['title'], constants.dontneed, constants.dontneed_wholeword)[1]
+                            artist_certainty = data.similar(query[0], artist_filtered)
+                            title_certainty = data.similar(query[1], title_filtered)
                             if((artist_certainty < constants.similarity_threshold) or (title_certainty < constants.similarity_threshold)):
                                 pass
                             else:
@@ -182,8 +182,8 @@ class deezer_platform:
                                 if((artist_certainty > most_certain[1]) and (title_certainty > most_certain[2])):
                                     most_certain = [result_item, artist_certainty, title_certainty]
                         else:
-                            result_filtered = " ".join(utils.filter_data(result_item['artist']['name'], result_item['title'], constants.dontneed, constants.dontneed_wholeword))
-                            certainty = utils.similar(query, result_filtered)
+                            result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], constants.dontneed, constants.dontneed_wholeword))
+                            certainty = data.similar(query, result_filtered)
                             if(certainty < constants.similarity_threshold):
                                 pass
                             else:

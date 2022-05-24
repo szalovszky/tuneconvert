@@ -5,3 +5,5 @@ requests>=2.27.1
 ffmpeg-python>=0.2.0
 beautifulsoup4>=4.11.1
 emoji>=1.7.0
+python-magic>=0.4.26
+pydub>=0.25.1

@@ -17,7 +17,7 @@ from shazamio import Shazam
 
 import constants
 from platforms import ddg_platform, startpage_platform, deezer_platform
-from utils import utils
+from utils import data, music_data, file, output
 import settings
 
 # Supress Asyncio deprecation warning
@@ -230,7 +230,7 @@ def parse_video(video, forceMethod=0):
         artist = ""
         title = video['title']
 
-    return utils.filter_data(
+    return music_data.filter_data(
             artist=artist, title=title, filter_list=constants.dontneed, 
             filter_word_list=constants.dontneed_wholeword)
 
@@ -250,11 +250,11 @@ def handle_res(video, i=0):
                 prnt("======")
                 prnt("Video not found at index " + str(i))
                 file_fail.write("fatalerror:" + str(i) + "\n")
-                file_overview.write(utils.gen_table_row(status="Video not found"))
+                file_overview.write(output.table_row(status="Video not found"))
             else:
                 hookout("error:general_error")
                 file_fail.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-                file_overview.write(utils.gen_table_row(status="Res error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>"))
+                file_overview.write(output.table_row(status="Res error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>"))
         else:
             hookout(f"info:checking:{video['title']}")
             prnt("=== " + video['title'] + " ===")
@@ -291,7 +291,7 @@ def handle_res(video, i=0):
                     if(not settings.settings.no_links):
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
-                        lres = utils.check_links(video['description'].replace("\n", " "))
+                        lres = music_data.check_links(video['description'].replace("\n", " "))
                         if(lres is not None):
                             if(lres[0] is not None):
                                 lres = lres[0]
@@ -369,7 +369,7 @@ def handle_res(video, i=0):
                     file_fail.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
                     file_output.write("https://youtu.be/" + video['id'] + "\n")
                     file_overview.write(
-                        utils.gen_table_row(status="Not found", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>", query=str(res)))
+                        output.table_row(status="Not found", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>", query=str(res)))
                     break
                 if(tsuccess):
                     deezer_check = deezer_platform.check_yt_res(video, deezer_result, res, settings.settings.experimental_search_ranking, featured_artist)
@@ -385,7 +385,7 @@ def handle_res(video, i=0):
                             success += 1
                             file_output.write(deezer_res['link'] + "\n")
                             file_overview.write(
-                                utils.gen_table_row(status="Success", engine=constants.src_name(src), certainty=formatted_certainty, original="<a target='_blank' href='https://youtu.be/""" + video['id'] + "'>""" + video['title'] + "</a>", found="<a target='_blank' href='" + deezer_res['link'] + "'>" + deezer_res['artist']['name'] + " - " + deezer_res['title'] + "</a>", query=str(res)))
+                                output.table_row(status="Success", engine=constants.src_name(src), certainty=formatted_certainty, original="<a target='_blank' href='https://youtu.be/""" + video['id'] + "'>""" + video['title'] + "</a>", found="<a target='_blank' href='" + deezer_res['link'] + "'>" + deezer_res['artist']['name'] + " - " + deezer_res['title'] + "</a>", query=str(res)))
                         else:
                             tsuccess = False
                 if(not tsuccess):
@@ -399,7 +399,7 @@ def handle_res(video, i=0):
         file_fail.write("handleerror:" + str(i) + "\n")
         hookout("error:handling_error")
         file_overview.write(
-            utils.gen_table_row(status="Handling error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>""" + video['title'] + "</a>"))
+            output.table_row(status="Handling error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>""" + video['title'] + "</a>"))
 
 def handle_yt(url):
     global success, not_found, total
