@@ -5,10 +5,15 @@ import json
 import requests
 from bs4 import BeautifulSoup
 import unicodedata
+import magic
+from pydub import AudioSegment
+import bpm_detector
+import numpy
+import math
 
 import settings
 
-class utils:
+class data:
     def similar(a, b):
         return SequenceMatcher(None, a, b).ratio()
 
@@ -17,6 +22,7 @@ class utils:
         [ulist.append(x) for x in l if x not in ulist]
         return ulist
 
+class music_data:
     def filter_data(artist, title, filter_list, filter_word_list):
         # Convert all fields to lowercase (search engines don't like cased queries for some reason and it doesn't need to be capitalized anyways)
         artist = artist.lower()
@@ -65,8 +71,8 @@ class utils:
             title = " ".join(x)
 
         # Remove duplicate words
-        artist = ' '.join(utils.unique_list(artist.split()))
-        title = ' '.join(utils.unique_list(title.split()))
+        artist = ' '.join(data.unique_list(artist.split()))
+        title = ' '.join(data.unique_list(title.split()))
 
         # Remove emojis from the Artist and Title field
         if(not settings.settings.force_emojis):
@@ -136,13 +142,68 @@ class utils:
         except:
             return None
 
-    def gen_table_row(status = "-", engine = "-", certainty = "-", original = "-", found = "-", query = "-"):
+class output:
+    def table_row(status = "-", engine = "-", certainty = "-", original = "-", found = "-", query = "-"):
         row = "<tr>"
         row += f"<td>{status}</td>"
         row += f"<td>{engine}</td>"
         row += f"<td>{certainty}%</td>"
         row += f"<td>{original}</td>"
         row += f"<td>{found}</td>"
-        row += f"<td>{query}</td>"
+        row += f"<td><code>{query}</code></td>"
         row += "</tr>"
         return row
+
+class file:
+    def determine_mime(filename): 
+        mime = magic.Magic(mime=True)
+        mime = mime.from_file(filename)
+        if mime != None:
+            mime = mime.split('/')
+            return mime
+        else:
+            return None
+        return result
+
+
+class audio:
+    def leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
+        trim_ms = 0
+        assert chunk_size > 0
+        while sound[trim_ms:trim_ms+chunk_size].dBFS < silence_threshold and trim_ms < len(sound):
+            trim_ms += chunk_size
+        return trim_ms
+
+    def cut_leading_silence(filename):
+        sound = AudioSegment.from_file(filename, format="wav")
+        start_trim = audio.leading_silence(sound)
+        end_trim = audio.leading_silence(sound.reverse())
+        trimmed_sound = sound[start_trim:len(sound)-end_trim]
+        trimmed_sound.export(filename, format="wav")
+
+    def detect_bpm(filename, window=3.0):
+        samps, fs = bpm_detector.read_wav(filename)
+        data = []
+        correl = []
+        n = 0
+        nsamps = len(samps)
+        window_samps = int(window * fs)
+        samps_ndx = 0
+        max_window_ndx = math.floor(nsamps / window_samps)
+        bpms = numpy.zeros(max_window_ndx)
+        # Iterate through all windows
+        for window_ndx in range(0, max_window_ndx):
+            data = samps[samps_ndx : samps_ndx + window_samps]
+            if not ((len(data) % window_samps) == 0):
+                raise AssertionError(str(len(data)))
+            bpm, correl_temp = bpm_detector.bpm_detector(data, fs)
+            if bpm is None:
+                continue
+            bpms[window_ndx] = bpm
+            correl = correl_temp
+            # Iterate at the end of the loop
+            samps_ndx = samps_ndx + window_samps
+            n = n + 1
+        #print(f"Median of collected windows' values: {numpy.median(bpms)}")
+        bpm = numpy.round(numpy.median(bpms)-0.005)
+        return int(bpm)
