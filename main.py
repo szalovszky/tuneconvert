@@ -1,3 +1,6 @@
+__version__ = '0.0.1'
+__author__ = 'Szalovszky Dávid'
+
 import random
 import string
 import time
@@ -20,10 +23,12 @@ from platforms import ddg_platform, startpage_platform, deezer_platform
 from utils import data, music_data, file, output
 import settings
 
+# TODO: Fix this
 # Supress Asyncio deprecation warning
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
+# Add arguments
 parser = argparse.ArgumentParser(description="yt2deezer", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
@@ -49,6 +54,7 @@ config = vars(args)
 
 settings.settings = args
 
+# Generate unique run ID
 run_id = str(int(time.time())).encode('utf-8') + str(''.join(random.choices(string.ascii_uppercase + string.digits, k=8))).encode('utf-8')
 h = hashlib.new('md5')
 h.update(run_id)
@@ -58,6 +64,7 @@ output_dir = "output/"
 working_dir = f"{output_dir}{run_id} /"
 temp_dir = working_dir + ".temp/"
 
+# Create output directory
 if(not os.path.exists(output_dir)):
     os.mkdir(output_dir)
 os.mkdir(working_dir)
@@ -67,6 +74,7 @@ logging.basicConfig(filename=working_dir + 'log.txt', filemode='w', encoding='ut
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Create & open output files
 file_overview = open(working_dir + 'output.html', 'w', encoding="utf-8")
 file_output = open(working_dir + 'output.txt', 'w', encoding="utf-8")
 file_output_json = open(working_dir + 'output.json', 'w', encoding="utf-8")
