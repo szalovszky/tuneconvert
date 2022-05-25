@@ -22,6 +22,12 @@ class data:
         [ulist.append(x) for x in l if x not in ulist]
         return ulist
 
+    def text_between(text, a, b):
+        try:
+            return re.search(rf'{a}(.*?){b}', text).group(1)
+        except:
+            return None
+
 class music_data:
     def filter_data(artist, title, filter_list, filter_word_list):
         # Convert all fields to lowercase (search engines don't like cased queries for some reason and it doesn't need to be capitalized anyways)
