@@ -1,3 +1,4 @@
+__name__ = "appname"
 __version__ = '0.0.1'
 __author__ = 'Szalovszky Dávid'
 
@@ -84,18 +85,20 @@ file_unavailable = open(working_dir + 'unavailable.txt', 'w', encoding="utf-8")
 file_options = open(working_dir + 'options.json', 'w', encoding="utf-8")
 
 
-def prnt(string):
+def prnt(string, end='\n'):
     global logger
-    print(string)
+    print(string, end=end)
     logger.info(string)
 
 
-def hookout(string):
+def hookout(**objects):
     if(settings.settings.hook):
-        print(f"hook>{string}")
+        print(f"hook>{json.dumps(objects)}")
 
 
-class normallogger:
+last_video_id = ""
+
+class info_logger:
     def debug(self, msg):
         # For compatibility with youtube-dl
         if msg.startswith('[debug] '):
@@ -104,7 +107,15 @@ class normallogger:
             self.info(msg)
 
     def info(self, msg):
-        prnt(msg)
+        current_video_id = data.text_between(msg, "[youtube]] ", ": Downloading webpage")
+        if(current_video_id is not None):
+            last_video_id = current_video_id
+            prnt(f"Fetching {current_video_id}...")
+        if((": Downloading " not in msg)):
+            if(("[download] Downloading video " in msg) and (" of " in msg)):
+                prnt(f"[{msg.replace('[download] Downloading video ', '')}] ", end='')
+            else:
+                prnt(msg)
 
     def warning(self, msg):
         prnt(msg)
@@ -115,7 +126,7 @@ class normallogger:
         prnt(msg)
 
 
-class dllogger:
+class download_logger:
     def debug(self, msg):
         # For compatibility with youtube-dl, both debug and info are passed into debug
         # You can distinguish them by the prefix '[debug] '
@@ -125,21 +136,14 @@ class dllogger:
             self.info(msg)
 
     def info(self, msg):
-        pass
+        if(not msg.startswith("[youtube] ") and ("Deleting original file" not in msg)):
+            prnt(msg)
 
     def warning(self, msg):
         prnt(msg)
 
     def error(self, msg):
         prnt(msg)
-
-
-def my_hook(d):
-    if d['status'] == 'downloading':
-        print("downloading " + str(round(float(d['downloaded_bytes'])/float(d['total_bytes'])*100,1))+"%")
-    if d['status'] == 'finished':
-        filename = d['filename']
-        print(filename)
 
 
 async def shazam_yt(url):
@@ -153,6 +157,9 @@ async def shazam_yt(url):
             'remove_sponsor_segments': ['music_offtopic']
         }],
         'outtmpl': temp_dir + 'audio.webm',
+        'logger': download_logger(),
+        "ignoreerrors": True,
+
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
         try:
@@ -162,11 +169,11 @@ async def shazam_yt(url):
         try:
             shazam = Shazam()
             (ffmpeg
-                .input(temp_dir + 'audio.webm')
+                .input(temp_dir + 'audio.webm', loglevel='24')
                 .output(temp_dir + 'audio%00005d.ogg',
                         c='copy', map='0', segment_time='00:00:30',
                         f='segment', reset_timestamps='1')
-                .run())
+                .run(overwrite_output=True))
 
             os.remove(temp_dir + "audio.webm")
 
@@ -208,7 +215,7 @@ async def shazam_yt(url):
             
             return found_isrc
         except Exception as e:
-            print(e)
+            print(traceback.format_exception())
             return None
 loop = asyncio.get_event_loop()
 
@@ -254,17 +261,17 @@ def handle_res(video, i=0):
         res = parse_video(video)
         if(res is None):
             if(video is None):
-                hookout("error:video_not_found")
+                hookout(type="error", message="video_not_found")
                 prnt("======")
                 prnt("Video not found at index " + str(i))
                 file_fail.write("fatalerror:" + str(i) + "\n")
                 file_overview.write(output.table_row(status="Video not found"))
             else:
-                hookout("error:general_error")
+                hookout(type="error", message="general_error")
                 file_fail.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
                 file_overview.write(output.table_row(status="Res error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>"))
         else:
-            hookout(f"info:checking:{video['title']}")
+            hookout(type="status", status="checking", message=video['title'])
             prnt("=== " + video['title'] + " ===")
             src = 0
             tsuccess = False
@@ -272,7 +279,7 @@ def handle_res(video, i=0):
                 if(src < len(constants.src_names)):
                     src_name = constants.src_name(src)
                     prnt("[INFO] Searching using " + src_name + "...")
-                    hookout(f"info:checking_src:{src_name}")
+                    hookout(type="status", status="checking_src", message=src_name)
                 featured_artist = False
                 if(src == 0):
                     if(not settings.settings.no_deezertrack):
@@ -400,51 +407,53 @@ def handle_res(video, i=0):
                     if(src < len(constants.src_names)):
                         prnt("[WARN] Couldn't find using " + constants.src_name(src))
                     src += 1
-        hookout(f"info:progress:{i+1}/{total};{not_found}")
+        hookout(type="progress", now=i+1, total=total, notfound=not_found)
     except Exception as e:
         prnt("Handling error at index " + str(i))
         prnt(traceback.format_exc())
         file_fail.write("handleerror:" + str(i) + "\n")
-        hookout("error:handling_error")
+        hookout(type="error", message="handling_error")
         file_overview.write(
             output.table_row(status="Handling error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>""" + video['title'] + "</a>"))
 
 def handle_yt(url):
     global success, not_found, total
     global loop
-    ydl = yt_dlp.YoutubeDL({"ignoreerrors": True, 'logger': normallogger(), 'progress_hooks': [my_hook],})
+    info_logger_instance = info_logger()
+    ydl = yt_dlp.YoutubeDL({"ignoreerrors": True, 'logger': info_logger_instance})
     with ydl:
-        hookout("info:fetching")
+        hookout(type="status", status="fetching")
         result = ydl.extract_info(url, download=False)
-        hookout("info:parsing")
-        
-        if 'entries' in result:
-            # This is a playlist or a list of videos
-            video = result['entries']
-            total = len(video)
+        hookout(type="status", status="parsing")
+        if(result is not None):
+            if 'entries' in result:
+                # This is a playlist or a list of videos
+                video = result['entries']
+                total = len(video)
 
-            # Loops entries to grab each video
-            for i, item in enumerate(video):
-                video = result['entries'][i]
-                handle_res(video, i)
-        else:
-            video = result
-            handle_res(video)
-
+                # Loops entries to grab each video
+                for i, item in enumerate(video):
+                    video = result['entries'][i]
+                    handle_res(video, i)
+            else:
+                video = result
+                handle_res(video)
+    
+    prnt('============================')
     prnt('Finished: ' + "{:.2f}".format((success/total)*100) + "% success (Total: " + str(total) + ", Not found: " + str(not_found) + ")")
     file_output.close()
     file_fail.close()
     file_unavailable.close()
     file_options.close()
 
-hookout(f"start:{run_id}")
+hookout(type="status", status="start", id=run_id)
 platform = settings.settings.destination
 if("deezer" in platform):
     prnt("Using Deezer as Target Platform")
-    hookout("info:platform_target_deezer")
+    hookout(type="target_platform", platform="deezer")
 else:
     prnt("Unsupported destination platform")
-    hookout("error:unsupported_target_platform")
+    hookout(type="target_platform", platform="")
     sys.exit()
 
 file_overview.write("""<style>
@@ -467,10 +476,12 @@ tr:nth-child(even) {
 <title>Overview</title>
 <meta charset="UTF-8">
 <meta name="overview-version" content="1">
-<meta name="app-version" content='""" + str(constants.version) + """'>
+<meta name="app-name" content='""" + str(__name__) + """'>
+<meta name="app-author" content='""" + str(__author__) + """'>
+<meta name="app-version" content='""" + str(__version__) + """'>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <h1>Result</h1>
-<h3>Run ID: """ + run_id + """</h3>
+<h3>Run ID: <code>""" + run_id + """</code></h3>
 <a href='output.txt'>Output file</a> | 
 <a href='output.json'>Output JSON</a> | 
 <a href='failed.txt'>Failed</a> | 
@@ -490,17 +501,19 @@ tr:nth-child(even) {
     <th>Query</th>
 </tr>""")
 dict_settings = settings.settings.__dict__
-dict_settings['version'] = constants.version
+dict_settings['name'] = __name__
+dict_settings['author'] = __author__
+dict_settings['version'] = __version__
 file_options.write(json.dumps(dict_settings))
 url = settings.settings.URL
 if("youtu" in url):
-    hookout("info:platform_source_youtube")
+    hookout(type="source_platform", platform="youtube")
     handle_yt(url)
 else:
     prnt("Unsupported source platform")
-    hookout("error:unsupported_source_platform")
+    hookout(type="source_platform", platform="")
     sys.exit()
 
 file_overview.write("</table>")
 shutil.rmtree(temp_dir)
-hookout(f"end:{run_id}")
+hookout(type="status", status="end", id=run_id)

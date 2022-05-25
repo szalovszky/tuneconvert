@@ -1,5 +1,3 @@
-version = 0
-
 similarity_threshold = 0.275
 
 dontneed = [
