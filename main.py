@@ -1,6 +1,6 @@
 __name__ = "appname"
 __version__ = '0.0.1'
-__author__ = 'Szalovszky Dávid'
+__author__ = 'Szalovszky David'
 
 import random
 import string
@@ -78,6 +78,8 @@ settings.logger.setLevel(logging.INFO)
 file_overview = open(settings.working_dir + 'output.html', 'w', encoding="utf-8")
 file_output = open(settings.working_dir + 'output.txt', 'w', encoding="utf-8")
 file_output_json = open(settings.working_dir + 'output.json', 'w', encoding="utf-8")
+
+output_json = {}
 
 file_fail = open(settings.working_dir + 'failed.txt', 'w', encoding="utf-8")
 file_unavailable = open(settings.working_dir + 'unavailable.txt', 'w', encoding="utf-8")
