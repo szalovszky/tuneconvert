@@ -20,7 +20,7 @@ import ffmpeg
 
 import constants
 from platforms import ddg_platform, startpage_platform, deezer_platform, youtube_platform, shazam_platform
-from utils import data, music_data, file, output
+from utils import data, music_data, file, output, audio
 import settings
 
 # TODO: Fix this
@@ -191,8 +191,11 @@ def handle_res(video, i=0):
             data.hookout(type="status", status="checking", message=video['title'])
             data.prnt("\n=== " + video['title'] + " ===")
             src = 0
+            src_bpm = 0
             tsuccess = False
             youtube_platform.download(f"https://youtu.be/{video['id']}", settings.temp_dir, download_logger())
+            audio.cut_leading_silence(settings.temp_dir + "audio.wav")
+            src_bpm = audio.detect_bpm(settings.temp_dir + "audio.wav")
             while(not tsuccess):
                 if(src < len(constants.src_names)):
                     src_name = constants.src_name(src)
