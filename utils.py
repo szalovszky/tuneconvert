@@ -189,6 +189,9 @@ class output:
         row += "</tr>"
         return row
 
+    def json_row(**objects):
+        return json.dumps(objects)
+
 class file:
     def determine_mime(filename): 
         mime = magic.Magic(mime=True)
