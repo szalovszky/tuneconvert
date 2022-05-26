@@ -226,6 +226,7 @@ def handle_res(video, i=0):
                         data.prnt("[INFO] Searching using " + src_name + "...")
                         data.hookout(type="status", status="checking_src", message=src_name)
                         used_src = True
+                        data.prnt("Please wait, this process might take a while...")
                         parsed_video = parse_video(video)
                         res = " ".join(parsed_video)
                         lres = music_data.check_links(video['description'].replace("\n", " "))

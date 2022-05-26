@@ -10,8 +10,12 @@ from pydub import AudioSegment
 import bpm_detector
 import numpy
 import math
+import traceback
+from urllib.parse import urlparse
+import random
 
 import settings
+import constants
 
 class data:
     def similar(a, b):
@@ -35,6 +39,16 @@ class data:
     def hookout(**objects):
         if(settings.settings.hook):
             print(f"hook>{json.dumps(objects)}")
+
+    def valid_link(string):
+        regex = re.compile(
+            r'^(?:http|ftp)s?://'
+            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'
+            r'localhost|'
+            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+            r'(?::\d+)?'
+            r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+        return re.match(regex, string) is not None
 
 class music_data:
     def filter_data(artist, title, filter_list, filter_word_list):
@@ -118,42 +132,49 @@ class music_data:
         try:
             res = None
             x = desc.split()
+            search = True
             for i in range(len(x)):
-                domain = re.sub(r"(https?:\/\/)?([w]{3}\.)?(\w*.\w*)([\/\w]*)", "\\3", x[i])
-                if(domain.endswith("lnk.to")):
-                    res = x[i]
+                if(not search):
                     break
+                if(not data.valid_link(x[i])):
+                    continue
+                domain = urlparse(x[i]).netloc
+                if(domain in constants.dontsearch_links):
+                    continue
 
-            if(res == None):
-                return res
+                headers = {
+                    'User-Agent': random.choice(constants.user_agents)
+                }
 
-            page = requests.get(res)
-            res = [None, None]
+                page = requests.get(x[i], headers)
+                res = [None, None]
 
-            soup = BeautifulSoup(page.content, "html.parser")
-            elems = soup.find_all("div", class_="music-service-list__item")
+                soup = BeautifulSoup(page.content, "html.parser")
+                elems = soup.find_all("a")
+                for elem in elems:
+                    link = elem["href"]
+                    if(link.startswith("https://www.deezer.com")):
+                        if("?" in link):
+                            link = link.split("?")[0]
+                        res = [link.replace("https://www.deezer.com/track/", ""), res[1]]
+                        search = False
+                        break
+                    elif(link.startswith("open.spotify.com")):
+                        # Deezer as a platform wasn't found, but we can find the ISRC from here
+                        # TODO: Janky solution, replace
+                        infojson = " ".join(soup.find('script', id="linkfire-tracking-data").string.split()) # Find <script> object and remove unnecessary whitespace from the string
+                        infojson = (infojson.replace("window.linkfire.tracking = { version: 1, parameters: ", "").replace(", required: {}, performance: {}, advertising: {}, additionalParameters: { subscribe: [], }, visitTrackingEvent: \"pageview\" };", "")) # Clear out non-JSON part of the <script>
+                        infojson = json.loads(infojson) # JSONify it
+                        res = [res[0], infojson['isrcs'][0]]
+                        search = False
+                        break
 
-            for elem in elems:
-                link_elem = elem.find("a", class_="music-service-list__link")
-                link = link_elem["href"]
-                domain = re.sub(r"(https?:\/\/)?([w]{3}\.)?(\w*.\w*)([\/\w]*)", "\\3", link)
-                if(domain.startswith("deezer.com")):
-                    if("?" in link):
-                        link = link.split("?")[0]
-                    res = [link.replace("https://www.deezer.com/track/", ""), res[1]]
-                elif(domain.startswith("open.spotify.com")):
-                    # Deezer as a platform wasn't found, but we can find the ISRC from here
-                    # TODO: Janky solution, replace
-                    infojson = " ".join(soup.find('script', id="linkfire-tracking-data").string.split()) # Find <script> object and remove unnecessary whitespace from the string
-                    infojson = (infojson.replace("window.linkfire.tracking = { version: 1, parameters: ", "").replace(", required: {}, performance: {}, advertising: {}, additionalParameters: { subscribe: [], }, visitTrackingEvent: \"pageview\" };", "")) # Clear out non-JSON part of the <script>
-                    infojson = json.loads(infojson) # JSONify it
-                    res = [res[0], infojson['isrcs'][0]]
-
-            if((res[0] == None) and (res[1] == None)):
-                res = None
+                if((res[0] == None) and (res[1] == None)):
+                    res = None
 
             return res
         except:
+            print(traceback.format_exc())
             return None
 
 class output:
