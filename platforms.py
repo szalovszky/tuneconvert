@@ -6,6 +6,11 @@ import requests
 from bs4 import BeautifulSoup
 from time import sleep
 import random
+import os
+
+import yt_dlp
+import ffmpeg
+from shazamio import Shazam
 
 import constants
 from utils import data, music_data
@@ -325,3 +330,76 @@ class startpage_platform:
         except Exception as e:
             print(e)
             return None
+
+class youtube_platform:
+    def download(url, path, logger):
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'wav',
+            }, {
+                'key': 'SponsorBlock',
+                'categories': ['music_offtopic']
+            }, {
+                'key': 'ModifyChapters',
+                'remove_sponsor_segments': ['music_offtopic']
+            }],
+            'outtmpl': path + "audio.wav",
+            'logger': logger,
+            "ignoreerrors": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
+            try:
+                ytdl.download(url)
+            except:
+                return None
+
+class shazam_platform:
+    async def recognize(filename):
+        shazam = Shazam()
+        (ffmpeg
+            .input(filename, loglevel='16')
+            .output(filename + '%00005d.wav',
+                    c='copy', map='0', segment_time='00:00:30',
+                    f='segment', reset_timestamps='1')
+            .run(overwrite_output=True))
+
+        found_isrc = None
+        last_isrc = None
+
+        segment = 0
+        search = True
+        files = sorted(os.listdir(settings.temp_dir))
+
+        for file in files:
+            if (file.startswith("audio") and not filename.endswith(file)):
+                file = settings.temp_dir + file
+                if (search):
+                    if(file.endswith(".temp.concat")):
+                        continue
+                    if (int(file.replace(filename, "").replace(".wav", "")
+                            .replace(settings.temp_dir, "")) % 2 == 0):
+                        if(segment >= 12):
+                            data.prnt(f"Giving up after {segment} tries")
+                            break
+                        segment += 1
+                        data.prnt(f"Testing segment #{segment}...")
+                        try:
+                            out = await shazam.recognize_song(file)
+                            isrc = out['track']['isrc']
+                            if(last_isrc == isrc):
+                                found_isrc = isrc
+                                search = False
+                            else:
+                                if(last_isrc != "0"):
+                                    data.prnt("Different result, continuing...")
+                                last_isrc = isrc
+                        except:
+                            data.prnt("Segment not found.")
+                if os.path.exists(file):
+                    os.remove(file)
+                else:
+                    data.prnt(f"Somehow {file} doesn't exist?")
+        
+        return found_isrc

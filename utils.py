@@ -28,6 +28,14 @@ class data:
         except:
             return None
 
+    def prnt(string, end='\n'):
+        print(string, end=end)
+        settings.logger.info(string)
+
+    def hookout(**objects):
+        if(settings.settings.hook):
+            print(f"hook>{json.dumps(objects)}")
+
 class music_data:
     def filter_data(artist, title, filter_list, filter_word_list):
         # Convert all fields to lowercase (search engines don't like cased queries for some reason and it doesn't need to be capitalized anyways)
