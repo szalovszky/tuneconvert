@@ -374,6 +374,27 @@ class youtube_platform:
             except:
                 return None
 
+    def is_mix(video, length=0):
+        if(not settings.settings.experimental_mix):
+            return False
+        if(length == 0):
+            length = video['duration']
+        title = video['title'].lower()
+
+        mix_certainty = 0.0
+
+
+        if("album" in title):
+            mix_certainty += 0.325
+
+        if(length >= 750):
+            mix_certainty += 1.0
+
+
+        if(mix_certainty > 1.0):
+            return True
+        return False
+
 class shazam_platform:
     async def recognize(filename):
         shazam = Shazam()
