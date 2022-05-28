@@ -113,6 +113,7 @@ class info_logger:
         if(("removed" in msg) or ("unavailable" in msg)):
             file_unavailable.write(msg + "\n")
         data.prnt(msg)
+settings.info_logger = info_logger()
 
 
 class download_logger:
@@ -136,6 +137,7 @@ class download_logger:
 
     def error(self, msg):
         data.prnt(msg)
+settings.download_logger = download_logger()
 
 
 def parse_video(video, forceMethod=0):
@@ -195,7 +197,7 @@ def handle_res(video, i=0):
             src = 0
             src_bpm = 0
             tsuccess = False
-            youtube_platform.download(f"https://youtu.be/{video['id']}", settings.temp_dir, download_logger())
+            youtube_platform.download(f"https://youtu.be/{video['id']}", settings.temp_dir)
             audio.cut_leading_silence(settings.temp_dir + "audio.wav")
             src_bpm = audio.detect_bpm(settings.temp_dir + "audio.wav")
             while(not tsuccess):

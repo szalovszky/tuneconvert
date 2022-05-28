@@ -20,6 +20,25 @@ import settings
 class deezer_platform:
     deezer_client = deezer.Client()
 
+    def download(url, path, isrc=""):
+        path = f"{path}deezer{isrc}.wav"
+        if(not os.path.exists(path)):
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'wav',
+                }],
+                'outtmpl': path,
+                'logger': settings.download_logger,
+                "ignoreerrors": True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
+                try:
+                    ytdl.download(url)
+                except:
+                    return None
+
     def search_track(query):
         success = False
         while(not success):
@@ -332,7 +351,7 @@ class startpage_platform:
             return None
 
 class youtube_platform:
-    def download(url, path, logger):
+    def download(url, path):
         ydl_opts = {
             'format': 'bestaudio/best',
             'postprocessors': [{
@@ -346,7 +365,7 @@ class youtube_platform:
                 'remove_sponsor_segments': ['music_offtopic']
             }],
             'outtmpl': path + "audio.wav",
-            'logger': logger,
+            'logger': settings.download_logger,
             "ignoreerrors": True,
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
