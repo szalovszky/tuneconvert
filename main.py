@@ -205,8 +205,10 @@ def handle_res(video, i=0):
             data.prnt("\n=== " + video['title'] + " ===")
             src = 0
             src_bpm = 0
+            src_length = 0
             tsuccess = False
             youtube_platform.download(f"https://youtu.be/{video['id']}", settings.temp_dir)
+            src_length = float(ffmpeg.probe(f"{settings.temp_dir}audio.wav")['format']['duration']).__floor__()
             if(settings.settings.experimental_bpm):
                 data.hookout(type="status", status="checking_bpm")
                 data.prnt("Detecting source BPM... ", end='')
@@ -343,6 +345,7 @@ def handle_res(video, i=0):
                         deezer_res = deezer_check[1]
                         deezer_res = deezer_platform.trackid(str(deezer_res["id"])).as_dict()
                         deezer_platform.download(url=deezer_res['preview'], path=settings.temp_dir, isrc=deezer_res["isrc"])
+                        length = deezer_res['duration']
                         formatted_certainty = str(round(certainty*100, 2))
                         if(certainty > constants.similarity_threshold):
                             data.prnt(f"[SUCCESS] [{formatted_certainty}% - {constants.src_name(src)}] {deezer_res['artist']['name']} - {deezer_res['title']}")
@@ -351,7 +354,7 @@ def handle_res(video, i=0):
                             data.hookout(type="status", status="found")
                             add_to_json(status="found", engine=constants.src_name(src), certainty=formatted_certainty, original=f"https://youtu.be/{video['id']}", found=deezer_res['link'], query=str(res))
                             file_overview.write(
-                                output.table_row(status="Success", engine=constants.src_name(src), certainty=formatted_certainty, original="<a target='_blank' href='https://youtu.be/""" + video['id'] + "'>""" + video['title'] + "</a>", found="<a target='_blank' href='" + deezer_res['link'] + "'>" + deezer_res['artist']['name'] + " - " + deezer_res['title'] + "</a>", query=str(res)))
+                                output.table_row(status="Success", engine=constants.src_name(src), certainty=formatted_certainty, original=f"<a target='_blank' href='https://youtu.be/{video['id']}'>{video['title']}</a>", found=f"<a target='_blank' href='{deezer_res['link']}'>{deezer_res['artist']['name']} - {deezer_res['title']}</a>", query=str(res)))
                         else:
                             tsuccess = False
                 if(not tsuccess):
