@@ -80,6 +80,7 @@ file_overview = open(settings.working_dir + 'output.html', 'w', encoding="utf-8"
 file_output = open(settings.working_dir + 'output.txt', 'w', encoding="utf-8")
 file_output_json = open(settings.working_dir + 'output.json', 'w', encoding="utf-8")
 
+json_index = 0
 output_json = {}
 
 file_fail = open(settings.working_dir + 'failed.txt', 'w', encoding="utf-8")
@@ -127,7 +128,7 @@ class download_logger:
             self.info(msg)
 
     def info(self, msg):
-        if(not msg.startswith("[youtube] ") and ("Deleting original file" not in msg) and (not msg.startswith("[SponsorBlock] ")) and ("mismatch." not in msg) and (not msg.startswith("[ModifyChapters] SponsorBlock information")) and ("Skipping ModifyChapters" not in msg)):
+        if(not msg.startswith("[youtube] ") and ("Deleting original file" not in msg) and (not msg.startswith("[SponsorBlock] ")) and ("mismatch." not in msg) and (not msg.startswith("[ModifyChapters] SponsorBlock information")) and ("Skipping ModifyChapters" not in msg) and (not msg.startswith("[generic] "))):
             if(not msg.startswith("[download] ")):
                 data.prnt(msg)
             else:
@@ -139,6 +140,12 @@ class download_logger:
     def error(self, msg):
         data.prnt(msg)
 settings.download_logger = download_logger()
+
+
+def add_to_json(**objects):
+    global output_json, json_index
+    output_json[json_index] = json.loads(json.dumps(objects))
+    json_index += 1
 
 
 def parse_video(video, forceMethod=0):
@@ -179,6 +186,7 @@ not_found = 0
 
 def handle_res(video, i=0):
     global success, not_found
+    global json_index
     try:
         res = parse_video(video)
         if(res is None):
@@ -340,6 +348,8 @@ def handle_res(video, i=0):
                             data.prnt(f"[SUCCESS] [{formatted_certainty}% - {constants.src_name(src)}] {deezer_res['artist']['name']} - {deezer_res['title']}")
                             success += 1
                             file_output.write(deezer_res['link'] + "\n")
+                            data.hookout(type="status", status="found")
+                            add_to_json(status="found", engine=constants.src_name(src), certainty=formatted_certainty, original=f"https://youtu.be/{video['id']}", found=deezer_res['link'], query=str(res))
                             file_overview.write(
                                 output.table_row(status="Success", engine=constants.src_name(src), certainty=formatted_certainty, original="<a target='_blank' href='https://youtu.be/""" + video['id'] + "'>""" + video['title'] + "</a>", found="<a target='_blank' href='" + deezer_res['link'] + "'>" + deezer_res['artist']['name'] + " - " + deezer_res['title'] + "</a>", query=str(res)))
                         else:
@@ -455,7 +465,8 @@ else:
     data.prnt("Unsupported source platform")
     data.hookout(type="source_platform", platform="")
     sys.exit()
-
+data.hookout(type="result", result=output_json)
+file_output_json.write(json.dumps(output_json))
 file_overview.write("</table>")
 shutil.rmtree(settings.temp_dir)
 data.hookout(type="status", status="end", id=run_id)
