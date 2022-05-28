@@ -34,9 +34,9 @@ class data:
 
     def prnt(string, end='\n'):
         # Patch up ffmpeg output
-        string = string.replace("[info]", "[INFO]")
+        string = string.replace("[info]", "[INFO]").replace("[download]", "[DOWNLOAD]")
         # Add color to output
-        string = string.replace("[INFO]", f"{constants.colors.OKCYAN}[INFO]{constants.colors.ENDC}").replace("[WARN]", f"{constants.colors.WARNING}[WARN]{constants.colors.ENDC}").replace("[SUCCESS]", f"{constants.colors.OKGREEN}[SUCCESS]{constants.colors.ENDC}").replace("[ERROR]", f"{constants.colors.FAIL}[ERROR]{constants.colors.ENDC}")
+        string = string.replace("[INFO]", f"{constants.colors.OKCYAN}[INFO]{constants.colors.ENDC}").replace("[WARN]", f"{constants.colors.WARNING}[WARN]{constants.colors.ENDC}").replace("[SUCCESS]", f"{constants.colors.OKGREEN}[SUCCESS]{constants.colors.ENDC}").replace("[ERROR]", f"{constants.colors.FAIL}[ERROR]{constants.colors.ENDC}").replace("[DOWNLOAD]", f"{constants.colors.HEADER}[DOWNLOAD]{constants.colors.ENDC}").replace("[ExtractAudio]", f"{constants.colors.HEADER}[ExtractAudio]{constants.colors.ENDC}")
         print(string, end=end)
         settings.logger.info(string)
 
