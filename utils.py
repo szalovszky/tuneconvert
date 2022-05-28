@@ -33,6 +33,8 @@ class data:
             return None
 
     def prnt(string, end='\n'):
+        # Prevent var type errors
+        string = str(string)
         # Patch up ffmpeg output
         string = string.replace("[info]", "[INFO]").replace("[download]", "[DOWNLOAD]")
         # Add color to output
