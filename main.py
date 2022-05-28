@@ -37,6 +37,7 @@ parser.add_argument("--force-unicode", default=False, help="Don't filter Unicode
 
 parser.add_argument("--experimental-search-ranking", default=False, help="[EXPERIMENTAL] Rank searches when querying", action='store_true')
 parser.add_argument("--experimental-ddg", default=False, help="[EXPERIMENTAL] Enable DuckDuckGo as a source", action='store_true')
+parser.add_argument("--experimental-bpm", default=False, help="[EXPERIMENTAL] Check source BPM and compare result's BPM", action='store_true')
 
 parser.add_argument("--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
 parser.add_argument("--no-links", default=False, help="Disable DescriptionLinkParse as a source", action='store_true')
@@ -198,8 +199,13 @@ def handle_res(video, i=0):
             src_bpm = 0
             tsuccess = False
             youtube_platform.download(f"https://youtu.be/{video['id']}", settings.temp_dir)
-            audio.cut_leading_silence(settings.temp_dir + "audio.wav")
-            src_bpm = audio.detect_bpm(settings.temp_dir + "audio.wav")
+            if(settings.settings.experimental_bpm):
+                data.hookout(type="status", status="checking_bpm")
+                data.prnt("Detecting source BPM... ", end='')
+                audio.cut_leading_silence(settings.temp_dir + "audio.wav")
+                src_bpm = audio.detect_bpm(settings.temp_dir + "audio.wav")
+                data.prnt(str(src_bpm))
+                data.hookout(type="bpm", bpm=src_bpm)
             while(not tsuccess):
                 if(src < len(constants.src_names)):
                     src_name = constants.src_name(src)
@@ -327,6 +333,8 @@ def handle_res(video, i=0):
                     else:
                         certainty = deezer_check[0]
                         deezer_res = deezer_check[1]
+                        deezer_res = deezer_platform.trackid(str(deezer_res["id"])).as_dict()
+                        deezer_platform.download(url=deezer_res['preview'], path=settings.temp_dir, isrc=deezer_res["isrc"])
                         formatted_certainty = str(round(certainty*100, 2))
                         if(certainty > constants.similarity_threshold):
                             data.prnt(f"[SUCCESS] [{formatted_certainty}% - {constants.src_name(src)}] {deezer_res['artist']['name']} - {deezer_res['title']}")
