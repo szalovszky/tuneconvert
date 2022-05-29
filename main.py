@@ -205,7 +205,7 @@ def find(source):
     file_output.write(f"{source.link}\n")
 
 
-def handle_res(video, i=0):
+def handle_youtube_result(video, i=0):
     global json_index
     try:
         res = youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT)
@@ -243,7 +243,7 @@ def handle_res(video, i=0):
         file_overview.write(
             output.table_row(status="Handling error", original=source.link, original_title=source.name))
 
-def handle_yt(url):
+def handle_youtube(url):
     global success, not_found, total
     global loop
     info_logger_instance = info_logger()
@@ -261,10 +261,10 @@ def handle_yt(url):
                 # Loops entries to grab each video
                 for i, item in enumerate(video):
                     video = result['entries'][i]
-                    handle_res(video, i)
+                    handle_youtube_result(video, i)
             else:
                 video = result
-                handle_res(video)
+                handle_youtube_result(video)
     
     data.prnt('============================')
     data.prnt('Finished: ' + "{:.2f}".format((success/total)*100) + "% success (Total: " + str(total) + ", Not found: " + str(not_found) + ")")
@@ -334,7 +334,7 @@ file_options.write(json.dumps(dict_settings))
 url = settings.settings.URL
 if("youtu" in url):
     data.hookout(type="source_platform", platform="youtube")
-    handle_yt(url)
+    handle_youtube(url)
 else:
     data.prnt("Unsupported source platform")
     data.hookout(type="source_platform", platform="")
