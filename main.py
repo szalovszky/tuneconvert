@@ -1,5 +1,5 @@
 __name__ = "tuneconvert"
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __author__ = 'Szalovszky David'
 
 import random
@@ -8,10 +8,8 @@ import time
 import logging
 import argparse
 import os
-import hashlib
 import shutil
 import json
-import asyncio
 import sys
 import traceback
 
@@ -20,8 +18,9 @@ import ffmpeg
 
 import constants
 from platforms import ddg_platform, startpage_platform, deezer_platform, youtube_platform, shazam_platform
-from utils import data, music_data, file, output, audio
+from utils import data, music_data, file, output, audio, music
 import settings
+from checks import deezer_check, startpage_check, duckduckgo_check, shazam_check, external_check
 
 # TODO: Fix this
 # Supress Asyncio deprecation warning
@@ -58,9 +57,7 @@ settings.settings = args
 
 # Generate unique run ID
 run_id = str(int(time.time())).encode('utf-8') + str(''.join(random.choices(string.ascii_uppercase + string.digits, k=8))).encode('utf-8')
-h = hashlib.new('md5')
-h.update(run_id)
-run_id = h.hexdigest()
+run_id = data.hash(run_id)
 
 settings.output_dir = "output/"
 settings.working_dir = f"{settings.output_dir}{run_id}/"
@@ -149,233 +146,102 @@ def add_to_json(**objects):
     json_index += 1
 
 
-def parse_video(video, forceMethod=0):
-    if(video is None):
-        return None
-    if(forceMethod == 0):
-        # Get Artist and Title field from YouTube
-        if("artist" not in video):
-            # No copyright field, try to parse it from video title
-            x = video['title'].lower().split(" - ")
-            if(len(x) > 1):
-                artist = x[0]
-                title = x[1]
-            else:
-                artist = ""
-                title = x[0]
+def add_result(results, result):
+    if(result is not None):
+        id = data.hash(result['result'][1]['id'])
+        if(id in results):
+            results[id]['score'] += 1.0
         else:
-            # There is a copyright field on the video, use that
-            artist = video['artist'].lower()
-            title = video['track'].lower()
-    elif(forceMethod == 1):
-        artist = video['uploader']
-        title = video['title']
-    elif(forceMethod == 2):
-        artist = ""
-        title = video['title']
+            results[id] = result
+            results[id]['score'] += result['result'][0]
+    return results
 
-    return music_data.filter_data(
-            artist=artist, title=title, filter_list=constants.dontneed, 
-            filter_word_list=constants.dontneed_wholeword)
-
-
-loop = asyncio.get_event_loop()
 
 total = 1
 success = 0
 not_found = 0
 
-def handle_res(video, i=0):
+def find(source):
     global success, not_found
+
+    if(settings.settings.experimental_bpm):
+        data.hookout(type="status", status="checking_bpm")
+        data.prnt("Detecting source BPM... ", end='')
+        audio.cut_leading_silence(source.filename)
+        source.bpm = audio.detect_bpm(source.filename)
+        data.prnt(str(source.bpm))
+        data.hookout(type="bpm", bpm=source.bpm)
+
+    results = {}
+    
+    add_result(results, deezer_check.track(source.title))
+    add_result(results, external_check.links(source.title, source.description))
+    add_result(results, startpage_check.search(source.title))
+    add_result(results, deezer_check.album(source.title))
+    add_result(results, shazam_check.search(source.title, source.filename))
+    add_result(results, duckduckgo_check.search(source.title))
+
+    if(len(results.items()) > 0):
+        # Sort results
+        results = dict(sorted(results.items(), key=lambda x: (x[1]['score'])))
+        top_result = list(results.items())[-1] if len(results.items()) > 0 else [0, [0, None]]
+        top_result = top_result[1]
+        # Output & save result
+        score = "%.2f" % top_result['score']
+        result = music(title=f"{top_result['result'][1]['artist']['name']} - {top_result['result'][1]['title']}", link=top_result['result'][1]['link'])
+        data.prnt(f"[SUCCESS] [{score}pts] {result.title}")
+        success += 1
+        data.hookout(type="status", status="found")
+        add_to_json(status="found", score=score, original=source.link, found=result.link, query=source.title)
+        file_overview.write(
+            output.table_row(status="Success", score=score, original=source.link, original_title=source.name, found=result.link, found_title=result.title, query=source.title))
+    else:
+        data.prnt(f"[ERROR] Not found {source.name}")
+        not_found += 1
+        result = source
+        file_fail.write(f"notfound:{source.link}\n")
+        file_overview.write(
+            output.table_row(status="Not found", original=source.link, original_title=source.name, query=source.title))
+    file_output.write(f"{source.link}\n")
+
+
+def handle_res(video, i=0):
     global json_index
     try:
-        res = parse_video(video)
+        res = youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT)
+        source = music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}")
         if(res is None):
             if(video is None):
                 data.hookout(type="error", message="video_not_found")
                 data.prnt("======")
-                data.prnt("Video not found at index " + str(i))
-                file_fail.write("fatalerror:" + str(i) + "\n")
+                data.prnt(f"Video not found at index {str(i)}")
+                file_fail.write(f"fatalerror:{str(i)}\n")
                 file_overview.write(output.table_row(status="Video not found"))
             else:
                 data.hookout(type="error", message="general_error")
-                file_fail.write("generror:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-                file_overview.write(output.table_row(status="Res error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>"))
+                file_fail.write(f"generror:{source.link}:{source.name}\n")
+                file_overview.write(output.table_row(status="Res error", original=source.link, original_title=source.name))
         else:
-            data.hookout(type="status", status="checking", message=video['title'])
-            data.prnt("\n=== " + video['title'] + " ===")
-            src = 0
-            src_bpm = 0
-            src_length = 0
-            tsuccess = False
-            youtube_platform.download(f"https://youtu.be/{video['id']}", settings.temp_dir)
-            src_length = float(ffmpeg.probe(f"{settings.temp_dir}audio.wav")['format']['duration']).__floor__()
-            if(not youtube_platform.is_mix(video=video, length=src_length)):
+            data.hookout(type="status", status="checking", message=source.name)
+            data.prnt("\n=== " + source.name + " ===")
+            source.filename = f"{settings.temp_dir}audio.wav"
+            youtube_platform.download(f"https://youtu.be/{video['id']}", source.filename)
+            source.length = float(ffmpeg.probe(source.filename)['format']['duration']).__floor__()
+            if(not youtube_platform.is_mix(video=video, length=source.length)):
                 data.hookout(type="data_type", dataType="track")
-                if(settings.settings.experimental_bpm):
-                    data.hookout(type="status", status="checking_bpm")
-                    data.prnt("Detecting source BPM... ", end='')
-                    audio.cut_leading_silence(settings.temp_dir + "audio.wav")
-                    src_bpm = audio.detect_bpm(settings.temp_dir + "audio.wav")
-                    data.prnt(str(src_bpm))
-                    data.hookout(type="bpm", bpm=src_bpm)
-                while(not tsuccess):
-                    if(src < len(constants.src_names)):
-                        src_name = constants.src_name(src)
-                    featured_artist = False
-                    used_src = False
-                    if(src == 0):
-                        if(not settings.settings.no_deezertrack):
-                            data.prnt("[INFO] Searching using " + src_name + "...")
-                            data.hookout(type="status", status="checking_src", message=src_name)
-                            used_src = True
-                            parsed_video = parse_video(video)
-                            res = " ".join(parsed_video)
-                            deezer_result = deezer_platform.search_track(res)
-                            res = parsed_video
-                            if(deezer_result is not None):
-                                tsuccess = True
-                    elif(src == 1):
-                        if(not settings.settings.no_deezertrack):
-                            data.prnt("[INFO] Searching using " + src_name + "...")
-                            data.hookout(type="status", status="checking_src", message=src_name)
-                            used_src = True
-                            parsed_video = parse_video(video)
-                            res = " ".join(parsed_video)
-                            deezer_result = deezer_platform.search_track(res)
-                            res = parsed_video
-                            featured_artist = True
-                            if(deezer_result is not None):
-                                tsuccess = True
-                    elif(src == 2):
-                        if(not settings.settings.no_links):
-                            data.prnt("[INFO] Searching using " + src_name + "...")
-                            data.hookout(type="status", status="checking_src", message=src_name)
-                            used_src = True
-                            data.prnt("Please wait, this process might take a while...")
-                            parsed_video = parse_video(video)
-                            res = " ".join(parsed_video)
-                            lres = music_data.check_links(video['description'].replace("\n", " "))
-                            if(lres is not None):
-                                if(lres[0] is not None):
-                                    lres = lres[0]
-                                    deezer_result = deezer_platform.trackid(lres)
-                                elif(lres[1] is not None):
-                                    lres = lres[1]
-                                    deezer_result = deezer_platform.isrc(lres)
-                                if(deezer_result is not None):
-                                    tsuccess = True
-                    elif(src == 3):
-                        if(not settings.settings.no_startpage):
-                            data.prnt("[INFO] Searching using " + src_name + "...")
-                            data.hookout(type="status", status="checking_src", message=src_name)
-                            used_src = True
-                            parsed_video = parse_video(video)
-                            res = " ".join(parsed_video)
-                            startpage_result = startpage_platform.search_track(res, use_spotify=False)
-                            if(startpage_result is not None):
-                                deezer_result = deezer_platform.tracklink(startpage_result)
-                                tsuccess = True
-                    elif(src == 4):
-                        if(not settings.settings.no_deezertrack):
-                            data.prnt("[INFO] Searching using " + src_name + "...")
-                            data.hookout(type="status", status="checking_src", message=src_name)
-                            used_src = True
-                            parsed_video = parse_video(video, 1)
-                            res = " ".join(parsed_video)
-                            deezer_result = deezer_platform.search_track(res)
-                            if(deezer_result is not None):
-                                tsuccess = True
-                    elif(src == 5):
-                        if(not settings.settings.no_deezertrack):
-                            data.prnt("[INFO] Searching using " + src_name + "...")
-                            data.hookout(type="status", status="checking_src", message=src_name)
-                            used_src = True
-                            parsed_video = parse_video(video, 2)
-                            res = " ".join(parsed_video)
-                            deezer_result = deezer_platform.search_track(res)
-                            if(deezer_result is not None):
-                                tsuccess = True
-                    elif(src == 6):
-                        if(not settings.settings.no_deezeralbum):
-                            data.prnt("[INFO] Searching using " + src_name + "...")
-                            data.hookout(type="status", status="checking_src", message=src_name)
-                            used_src = True
-                            parsed_video = parse_video(video)
-                            res = " ".join(parsed_video)
-                            deezer_result = deezer_platform.search_album(res)
-                            if(deezer_result is not None):
-                                tsuccess = True
-                    elif(src == 7):
-                        if(not settings.settings.no_shazam):
-                            data.prnt("[INFO] Searching using " + src_name + "...")
-                            data.hookout(type="status", status="checking_src", message=src_name)
-                            used_src = True
-                            data.prnt("Please wait, this process might take a while...")
-                            parsed_video = parse_video(video)
-                            res = " ".join(parsed_video)
-                            shazam = loop.run_until_complete(shazam_platform.recognize(f"{settings.temp_dir}audio.wav"))
-                            if(shazam is not None):
-                                deezer_result = deezer_platform.isrc(shazam)
-                                tsuccess = True
-                    elif(src == 8):
-                        if(settings.settings.experimental_ddg):
-                            data.prnt("[INFO] Searching using " + src_name + "...")
-                            data.hookout(type="status", status="checking_src", message=src_name)
-                            used_src = True
-                            data.prnt("Please wait, this process might take a while...")
-                            parsed_video = parse_video(video)
-                            res = " ".join(parsed_video)
-                            ddg_result = ddg_platform.search_track(res, use_spotify=False)
-                            if(ddg_result is not None):
-                                deezer_result = deezer_platform.tracklink(ddg_result)
-                                tsuccess = True
-                    else:
-                        tsuccess = True
-                        data.prnt("[ERROR] Not found " + video['title'])
-                        not_found += 1
-                        file_fail.write("notfound:https://youtu.be/" + video['id'] + ":" + video['title'] + "\n")
-                        file_output.write("https://youtu.be/" + video['id'] + "\n")
-                        file_overview.write(
-                            output.table_row(status="Not found", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>" + video['title'] + "</a>", query=str(res)))
-                        break
-                    if(tsuccess):
-                        deezer_check = deezer_platform.check_yt_res(video, deezer_result, res, settings.settings.experimental_search_ranking, featured_artist)
-                        if(deezer_check is None or not deezer_check):
-                            tsuccess = False
-                        else:
-                            certainty = deezer_check[0]
-                            deezer_res = deezer_check[1]
-                            deezer_res = deezer_platform.trackid(str(deezer_res["id"])).as_dict()
-                            deezer_platform.download(url=deezer_res['preview'], path=settings.temp_dir, isrc=deezer_res["isrc"])
-                            length = deezer_res['duration']
-                            formatted_certainty = str(round(certainty*100, 2))
-                            if(certainty > constants.similarity_threshold):
-                                data.prnt(f"[SUCCESS] [{formatted_certainty}% - {constants.src_name(src)}] {deezer_res['artist']['name']} - {deezer_res['title']}")
-                                success += 1
-                                file_output.write(deezer_res['link'] + "\n")
-                                data.hookout(type="status", status="found")
-                                add_to_json(status="found", engine=constants.src_name(src), certainty=formatted_certainty, original=f"https://youtu.be/{video['id']}", found=deezer_res['link'], query=str(res))
-                                file_overview.write(
-                                    output.table_row(status="Success", engine=constants.src_name(src), certainty=formatted_certainty, original=f"<a target='_blank' href='https://youtu.be/{video['id']}'>{video['title']}</a>", found=f"<a target='_blank' href='{deezer_res['link']}'>{deezer_res['artist']['name']} - {deezer_res['title']}</a>", query=str(res)))
-                            else:
-                                tsuccess = False
-                    if(not tsuccess):
-                        if(src < len(constants.src_names) and used_src):
-                            data.prnt("[WARN] Couldn't find using " + constants.src_name(src))
-                        src += 1
+                find(source)
             else:
                 data.prnt("[WARN] Trying experimental method to get all songs of the mix...")
                 data.hookout(type="data_type", dataType="mix")
             os.remove(settings.temp_dir + "audio.wav")
         data.hookout(type="progress", now=i+1, total=total, notfound=not_found)
     except Exception as e:
-        data.prnt("Handling error at index " + str(i))
+        data.prnt("[ERROR] Handling error at index " + str(i))
         data.prnt(traceback.format_exc())
         file_fail.write("handleerror:" + str(i) + "\n")
         data.hookout(type="error", message="handling_error")
         file_overview.write(
-            output.table_row(status="Handling error", original="<a target='_blank' href='https://youtu.be/" + video['id'] + "'>""" + video['title'] + "</a>"))
+            output.table_row(status="Handling error", original=source.link, original_title=source.name))
 
 def handle_yt(url):
     global success, not_found, total
@@ -436,7 +302,7 @@ tr:nth-child(even) {
 </style>
 <title>Overview</title>
 <meta charset="UTF-8">
-<meta name="overview-version" content="1">
+<meta name="overview-version" content="2">
 <meta name="app-name" content='""" + str(__name__) + """'>
 <meta name="app-author" content='""" + str(__author__) + """'>
 <meta name="app-version" content='""" + str(__version__) + """'>
@@ -455,8 +321,7 @@ tr:nth-child(even) {
 <table>
 <tr>
     <th>Status</th>
-    <th>Engine</th>
-    <th>Certainty</th>
+    <th>Score</th>
     <th>Original</th>
     <th>Found</th>
     <th>Query</th>

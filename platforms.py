@@ -43,6 +43,12 @@ class deezer_platform:
         success = False
         while(not success):
             try:
+                try:
+                    iterator = iter(query)
+                except TypeError:
+                    pass
+                else:
+                    query = " ".join(query)
                 res = platforms.deezer_platform.deezer_client.search(query)
                 if(len(res) <= 0):
                     res = None
@@ -130,7 +136,7 @@ class deezer_platform:
                     break
         return res
 
-    def check_yt_res(original, result, query, search_ranking = False, featured_artists = False):
+    def check_result(query, result, featured_artists = False):
         if(result == None):
             return None
         seperate = isinstance(query, list)
@@ -213,7 +219,7 @@ class deezer_platform:
                             else:
                                 if(certainty > most_certain[1]):
                                     most_certain = [result_item, certainty, 0.0]
-                        if(not search_ranking):
+                        if(not settings.settings.experimental_search_ranking):
                             break
                     certainty = most_certain[1] if most_certain[2] == 0.0 else ((most_certain[1] + most_certain[2])/2)
                     return [certainty, result_item]
@@ -351,6 +357,11 @@ class startpage_platform:
             return None
 
 class youtube_platform:
+    class parse_method:
+        DEFAULT = 0
+        UPLOADER_TITLE = 1
+        TITLE_ONLY = 2
+    
     def download(url, path):
         ydl_opts = {
             'format': 'bestaudio/best',
@@ -364,7 +375,7 @@ class youtube_platform:
                 'key': 'ModifyChapters',
                 'remove_sponsor_segments': ['music_offtopic']
             }],
-            'outtmpl': path + "audio.wav",
+            'outtmpl': path,
             'logger': settings.download_logger,
             "ignoreerrors": True,
         }
@@ -394,6 +405,35 @@ class youtube_platform:
         if(mix_certainty > 1.0):
             return True
         return False
+
+    def parse(video, parse_method=0):
+        if(video is None):
+            return None
+        if(parse_method == 0):
+            # Get Artist and Title field from YouTube
+            if("artist" not in video):
+                # No copyright field, try to parse it from video title
+                x = video['title'].lower().split(" - ")
+                if(len(x) > 1):
+                    artist = x[0]
+                    title = x[1]
+                else:
+                    artist = ""
+                    title = x[0]
+            else:
+                # There is a copyright field on the video, use that
+                artist = video['artist'].lower()
+                title = video['track'].lower()
+        elif(parse_method == 1):
+            artist = video['uploader']
+            title = video['title']
+        elif(parse_method == 2):
+            artist = ""
+            title = video['title']
+
+        return music_data.filter_data(
+                artist=artist, title=title, filter_list=constants.dontneed, 
+                filter_word_list=constants.dontneed_wholeword)
 
 class shazam_platform:
     async def recognize(filename):
