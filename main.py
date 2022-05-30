@@ -268,12 +268,12 @@ def handle_youtube(url):
     
     data.prnt('============================')
     data.prnt('Finished: ' + "{:.2f}".format((success/total)*100) + "% success (Total: " + str(total) + ", Not found: " + str(not_found) + ")")
-    file_output.close()
-    file_fail.close()
-    file_unavailable.close()
-    file_options.close()
 
 data.hookout(type="status", status="start", id=run_id)
+
+# Write header to overview file
+file_overview.write(constants.gen_output_html(name=__name__, version=__version__, author=__author__, run_id=run_id, overview_version=3))
+
 platform = settings.settings.destination
 if("deezer" in platform):
     data.prnt("Using Deezer as Target Platform")
@@ -283,54 +283,6 @@ else:
     data.hookout(type="target_platform", platform="")
     sys.exit()
 
-file_overview.write("""<style>
-* {
-    font-family: arial, sans-serif;
-}
-table {
-    border-collapse: collapse;
-    width: 100%;
-}
-td, th {
-    border: 1px solid #dddddd;
-    text-align: left;
-    padding: 8px;
-}
-tr:nth-child(even) {
-    background-color: #dddddd;
-}
-</style>
-<title>Overview</title>
-<meta charset="UTF-8">
-<meta name="overview-version" content="2">
-<meta name="app-name" content='""" + str(__name__) + """'>
-<meta name="app-author" content='""" + str(__author__) + """'>
-<meta name="app-version" content='""" + str(__version__) + """'>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<h1>Result</h1>
-<h3>Run ID: <code>""" + run_id + """</code></h3>
-<a href='output.txt'>Output file</a> | 
-<a href='output.json'>Output JSON</a> | 
-<a href='failed.txt'>Failed</a> | 
-<a href='unavailable.txt'>Unavailable</a> | 
-<a href='options.json'>Settings</a> | 
-<a href='log.txt'>Log</a><br />
-<a href='data:text/plain;charset=UTF-8,out.txt' download='output.txt'><b>Download Output file</b></a> | 
-<a href='data:text/plain;charset=UTF-8,out.json' download='output.json'><b>Download Output JSON</b></a> | 
-<a href='data:text/plain;charset=UTF-8,options.json' download='settings.json'><b>Download Settings</b></a><br />
-<table>
-<tr>
-    <th>Status</th>
-    <th>Score</th>
-    <th>Original</th>
-    <th>Found</th>
-    <th>Query</th>
-</tr>""")
-dict_settings = settings.settings.__dict__
-dict_settings['name'] = __name__
-dict_settings['author'] = __author__
-dict_settings['version'] = __version__
-file_options.write(json.dumps(dict_settings))
 url = settings.settings.URL
 if("youtu" in url):
     data.hookout(type="source_platform", platform="youtube")
@@ -339,8 +291,24 @@ else:
     data.prnt("Unsupported source platform")
     data.hookout(type="source_platform", platform="")
     sys.exit()
+
+# Write options to file
+dict_settings = settings.settings.__dict__
+dict_settings['name'] = __name__
+dict_settings['author'] = __author__
+dict_settings['version'] = __version__
+file_options.write(json.dumps(dict_settings))
+
+# Output result
 data.hookout(type="result", result=output_json)
 file_output_json.write(json.dumps(output_json))
-file_overview.write("</table>")
+file_overview.write(constants.gen_output_html(start=False))
+
+# Clean up remaining temp files & Close files
 shutil.rmtree(settings.temp_dir)
+file_output.close()
+file_fail.close()
+file_unavailable.close()
+file_options.close()
+
 data.hookout(type="status", status="end", id=run_id)
