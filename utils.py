@@ -18,6 +18,7 @@ import inspect
 
 import settings
 import constants
+from timeout import timeout
 
 class data:
     def similar(a, b):
@@ -162,6 +163,7 @@ class music_data:
         # Lastly, return the result
         return [artist, title]
 
+    @timeout(constants.link_timeout)
     def check_links(desc):
         try:
             res = None
