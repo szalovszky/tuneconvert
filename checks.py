@@ -4,6 +4,7 @@ import asyncio
 from utils import data
 from platforms import *
 import constants
+from timeout import timeout
 
 class check_result:
     id = ""
