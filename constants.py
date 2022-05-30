@@ -42,6 +42,65 @@ dontsearch_links = [
     "youtu.be"
 ]
 
+output_html_start = """<html>
+<head>
+    <style>
+        * {
+            font-family: arial, sans-serif;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        td, th {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+        tr:nth-child(even) {
+            background-color: #dddddd;
+        }
+    </style>
+    <title>${name} - Overview</title>
+    <meta charset="UTF-8">
+    <meta name="overview-version" content="${overview_version}">
+    <meta name="app-name" content='${name}'>
+    <meta name="app-author" content='${author}'>
+    <meta name="app-version" content='${version}'>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <h1 id='title'>${name} - Result overview</h1>
+    <p id='run-id'>Run ID: <code>${run_id}</code></p>
+    <a class='c1-link' href='output.txt'>Output file</a> | 
+    <a class='c1-link' href='output.json'>Output JSON</a> | 
+    <a class='c1-link' href='failed.txt'>Failed</a> | 
+    <a class='c1-link' href='unavailable.txt'>Unavailable</a> | 
+    <a class='c1-link' href='options.json'>Settings</a> | 
+    <a class='c1-link' href='log.txt'>Log</a><br />
+    <a class='c2-link' href='data:text/plain;charset=UTF-8,out.txt' download='output.txt'><b>Download Output file</b></a> | 
+    <a class='c2-link' href='data:text/plain;charset=UTF-8,out.json' download='output.json'><b>Download Output JSON</b></a> | 
+    <a class='c2-link' href='data:text/plain;charset=UTF-8,options.json' download='settings.json'><b>Download Settings</b></a><br />
+    <table>
+    <tr>
+        <th>Status</th>
+        <th>Score</th>
+        <th>Original</th>
+        <th>Found</th>
+        <th>Query</th>
+    </tr>"""
+
+output_html_end = """</table>
+</body>
+</html>"""
+
+def gen_output_html(start=True, **objects):
+    html = output_html_start if start else output_html_end
+    if(len(objects) > 0):
+        for obj in objects:
+            html = html.replace("${"+obj+"}", str(objects[obj]))
+    return html
+
 class colors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
