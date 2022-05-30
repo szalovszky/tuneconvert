@@ -170,49 +170,51 @@ class music_data:
             x = desc.split()
             search = True
             for i in range(len(x)):
-                if(not search):
-                    break
-                if(not data.valid_link(x[i])):
-                    continue
-                domain = urlparse(x[i]).netloc
-                if(domain in constants.dontsearch_links):
-                    continue
+                try:
+                    if(not search):
+                        break
+                    if(not data.valid_link(x[i])):
+                        continue
+                    domain = urlparse(x[i]).netloc
+                    if(domain in constants.dontsearch_links):
+                        continue
 
-                headers = {
-                    'User-Agent': random.choice(constants.user_agents)
-                }
+                    headers = {
+                        'User-Agent': random.choice(constants.user_agents)
+                    }
 
-                page = requests.get(x[i], headers)
-                res = [None, None]
+                    page = requests.get(x[i], headers)
+                    res = [None, None]
 
-                soup = BeautifulSoup(page.content, "html.parser")
-                elems = soup.find_all("a")
-                for elem in elems:
-                    try:
-                        link = elem["href"]
-                        if((link.startswith("https://www.deezer.com/")) and ("/album/" not in link)):
-                            if("?" in link):
-                                link = link.split("?")[0]
-                            res = [link.replace("https://www.deezer.com/track/", ""), res[1]]
-                            
-                            search = False
-                            break
-                        elif(link.startswith("open.spotify.com")):
-                            # Deezer as a platform wasn't found, but we can find the ISRC from here
-                            # TODO: Janky solution, replace
-                            infojson = " ".join(soup.find('script', id="linkfire-tracking-data").string.split()) # Find <script> object and remove unnecessary whitespace from the string
-                            infojson = (infojson.replace("window.linkfire.tracking = { version: 1, parameters: ", "").replace(", required: {}, performance: {}, advertising: {}, additionalParameters: { subscribe: [], }, visitTrackingEvent: \"pageview\" };", "")) # Clear out non-JSON part of the <script>
-                            infojson = json.loads(infojson) # JSONify it
-                            res = [res[0], infojson['isrcs'][0]]
+                    soup = BeautifulSoup(page.content, "html.parser")
+                    elems = soup.find_all("a")
+                    for elem in elems:
+                        try:
+                            link = elem["href"]
+                            if((link.startswith("https://www.deezer.com/")) and ("/album/" not in link)):
+                                if("?" in link):
+                                    link = link.split("?")[0]
+                                res = [link.replace("https://www.deezer.com/track/", ""), res[1]]
+                                
+                                search = False
+                                break
+                            elif(link.startswith("open.spotify.com")):
+                                # Deezer as a platform wasn't found, but we can find the ISRC from here
+                                # TODO: Janky solution, replace
+                                infojson = " ".join(soup.find('script', id="linkfire-tracking-data").string.split()) # Find <script> object and remove unnecessary whitespace from the string
+                                infojson = (infojson.replace("window.linkfire.tracking = { version: 1, parameters: ", "").replace(", required: {}, performance: {}, advertising: {}, additionalParameters: { subscribe: [], }, visitTrackingEvent: \"pageview\" };", "")) # Clear out non-JSON part of the <script>
+                                infojson = json.loads(infojson) # JSONify it
+                                res = [res[0], infojson['isrcs'][0]]
 
-                            search = False
-                            break
-                    except:
-                        pass
-                
-                if((res[0] == None) and (res[1] == None)):
-                    res = None
-
+                                search = False
+                                break
+                        except:
+                            pass
+                    
+                    if((res[0] == None) and (res[1] == None)):
+                        res = None
+                except:
+                    pass
             return res
         except:
             print(traceback.format_exc())
