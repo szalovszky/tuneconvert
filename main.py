@@ -23,7 +23,7 @@ import constants
 from platforms import ddg_platform, startpage_platform, deezer_platform, youtube_platform, shazam_platform
 from utils import data, music_data, file, output, audio, music
 import settings
-from checks import deezer_check, startpage_check, duckduckgo_check, shazam_check, external_check
+from checks import deezer_check, startpage_check, duckduckgo_check, shazam_check, external_check, data_check
 
 # TODO: Fix this
 # Supress Asyncio deprecation warning
@@ -48,6 +48,7 @@ parser.add_argument("--no-deezertrack", default=False, help="Disable DeezerTrack
 parser.add_argument("--no-deezeralbum", default=False, help="Disable DeezerAlbum as a source", action='store_true')
 parser.add_argument("--no-startpage", default=False, help="Disable Startpage as a source", action='store_true')
 parser.add_argument("--no-ddg", default=False, help="Disable DuckDuckGo as a source", action='store_true')
+parser.add_argument("--no-length", default=False, help="Disable Length as a check measure", action='store_true')
 
 parser.add_argument("--hook", default=False, help="Special argument", action='store_true')
 
@@ -149,13 +150,16 @@ def add_to_json(**objects):
     json_index += 1
 
 
-def add_result(results, result):
+def add_result(source, results, result):
     if(result is not None):
         id = data.hash(result['result'][1]['link'])
         if(id in results):
             results[id]['score'] += 1.0
         else:
             results[id] = result
+            # Add length score
+            results[id]['score'] += data_check.length(source_length=source.length, result_length=result['result'][1]['duration'])
+            # Add score already calculated
             results[id]['score'] += result['result'][0]
     return results
 
@@ -181,13 +185,13 @@ def find(source, music_type=music.type.DEFAULT, only_metadata=False):
     else:
         if((settings.settings.force_mix_as_singular) and (music_type is music.type.MIX_OR_ALBUM)):
             data.prnt("[WARN] Forcing detected mix or album as a singular song. This may cause unaccurate results")
-        add_result(results, deezer_check.track(source.title, is_remix))
-        add_result(results, startpage_check.search(source.title, is_remix))
-        add_result(results, deezer_check.album(source.title, is_remix))
-        add_result(results, duckduckgo_check.search(source.title, is_remix))
+        add_result(source, results, deezer_check.track(source.title, is_remix))
+        add_result(source, results, startpage_check.search(source.title, is_remix))
+        add_result(source, results, deezer_check.album(source.title, is_remix))
+        add_result(source, results, duckduckgo_check.search(source.title, is_remix))
         if(not only_metadata):
-            add_result(results, external_check.links(source.title, source.description, is_remix))
-            add_result(results, shazam_check.search(source.title, source.filename, is_remix))
+            add_result(source, results, external_check.links(source.title, source.description, is_remix))
+            add_result(source, results, shazam_check.search(source.title, source.filename, is_remix))
 
     if(len(results.items()) > 0):
         # Sort results
