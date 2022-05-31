@@ -79,7 +79,7 @@ class external_check:
                 if(links[0] is not None):
                     id = links[0]
                     deezer_result = deezer_platform.trackid(id)
-                elif(lres[1] is not None):
+                elif(links[1] is not None):
                     isrc = links[1]
                     deezer_result = deezer_platform.isrc(isrc)
             return check_result.gen(query, deezer_result)
