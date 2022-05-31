@@ -235,7 +235,7 @@ def handle(source, result):
         data.prnt(f"[SUCCESS] [{score}pts] {result.title}")
         success += 1
         data.hookout(type="status", status="found")
-        add_to_json(status="found", score=score, original=source.link, found=result.link, query=source.title[1])
+        add_to_json(status="found", score=score, original=source.link, found=result.link, query=source.title)
         file_overview.write(
             output.table_row(status="Success", score=score, original=source.link, original_title=source.name, found=result.link, found_title=result.title, query=source.title[1]))
     else:
@@ -243,9 +243,9 @@ def handle(source, result):
         not_found += 1
         result = source
         file_fail.write(f"notfound:{source.link}\n")
-        add_to_json(status="not_found", original=source.link, query=source.title[1])
+        add_to_json(status="not_found", original=source.link, query=source.title)
         file_overview.write(
-            output.table_row(status="Not found", original=source.link, original_title=source.name, query=source.title[1]))
+            output.table_row(status="Not found", original=source.link, original_title=source.name, query=source.title))
     file_output.write(f"{source.link}\n")
 
 
