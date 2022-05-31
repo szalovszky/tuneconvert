@@ -1,4 +1,4 @@
-__name__ = "tuneconvert"
+__appname__ = "tuneconvert"
 __version__ = '0.0.2'
 __author__ = 'Szalovszky David'
 
@@ -12,6 +12,9 @@ import shutil
 import json
 import sys
 import traceback
+from datetime import datetime
+
+run_start = datetime.now()
 
 import yt_dlp
 import ffmpeg
@@ -34,16 +37,17 @@ parser.add_argument("--force-year", default=False, help="Don't filter year out o
 parser.add_argument("--force-emojis", default=False, help="Don't filter emojis out of metadata", action='store_true')
 parser.add_argument("--force-unicode", default=False, help="Don't filter Unicode text out of metadata", action='store_true')
 
+parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
+
 parser.add_argument("--experimental-search-ranking", default=False, help="[EXPERIMENTAL] Rank searches when querying", action='store_true')
-parser.add_argument("--experimental-ddg", default=False, help="[EXPERIMENTAL] Enable DuckDuckGo as a source", action='store_true')
 parser.add_argument("--experimental-bpm", default=False, help="[EXPERIMENTAL] Check source BPM and compare result's BPM", action='store_true')
-parser.add_argument("--experimental-mix", default=False, help="[EXPERIMENTAL] If provided source is detected to be a mix, try to parse each song in it", action='store_true')
 
 parser.add_argument("--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
 parser.add_argument("--no-links", default=False, help="Disable DescriptionLinkParse as a source", action='store_true')
 parser.add_argument("--no-deezertrack", default=False, help="Disable DeezerTrack as a source", action='store_true')
 parser.add_argument("--no-deezeralbum", default=False, help="Disable DeezerAlbum as a source", action='store_true')
 parser.add_argument("--no-startpage", default=False, help="Disable Startpage as a source", action='store_true')
+parser.add_argument("--no-ddg", default=False, help="Disable DuckDuckGo as a source", action='store_true')
 
 parser.add_argument("--hook", default=False, help="Special argument", action='store_true')
 
@@ -161,9 +165,7 @@ total = 1
 success = 0
 not_found = 0
 
-def find(source):
-    global success, not_found
-
+def find(source, music_type=music.type.DEFAULT, only_metadata=False):
     if(settings.settings.experimental_bpm):
         data.hookout(type="status", status="checking_bpm")
         data.prnt("Detecting source BPM... ", end='')
@@ -172,36 +174,73 @@ def find(source):
         data.prnt(str(source.bpm))
         data.hookout(type="bpm", bpm=source.bpm)
 
+    is_remix = (music_type is music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
     results = {}
     
-    add_result(results, deezer_check.track(source.title))
-    add_result(results, external_check.links(source.title, source.description))
-    add_result(results, startpage_check.search(source.title))
-    add_result(results, deezer_check.album(source.title))
-    add_result(results, shazam_check.search(source.title, source.filename))
-    add_result(results, duckduckgo_check.search(source.title))
+    if((not settings.settings.force_mix_as_singular) and (music_type is music.type.MIX_OR_ALBUM)):
+        data.prnt("[WARN] Skipping mix or album... (not yet supported)")
+    else:
+        if((settings.settings.force_mix_as_singular) and (music_type is music.type.MIX_OR_ALBUM)):
+            data.prnt("[WARN] Forcing detected mix or album as a singular song. This may cause unaccurate results")
+        add_result(results, deezer_check.track(source.title, is_remix))
+        add_result(results, startpage_check.search(source.title, is_remix))
+        add_result(results, deezer_check.album(source.title, is_remix))
+        add_result(results, duckduckgo_check.search(source.title, is_remix))
+        if(not only_metadata):
+            add_result(results, external_check.links(source.title, source.description, is_remix))
+            add_result(results, shazam_check.search(source.title, source.filename, is_remix))
 
     if(len(results.items()) > 0):
         # Sort results
         results = dict(sorted(results.items(), key=lambda x: (x[1]['score'])))
         top_result = list(results.items())[-1] if len(results.items()) > 0 else [0, [0, None]]
         top_result = top_result[1]
-        # Output & save result
-        score = "%.2f" % top_result['score']
-        result = music(title=f"{top_result['result'][1]['artist']['name']} - {top_result['result'][1]['title']}", link=top_result['result'][1]['link'])
+        return [top_result, is_remix]
+    else:
+        return [None, None]
+
+
+def rank_find(query, **objects):
+    if(len(objects) <= 0):
+        return None
+    
+    results = []
+
+    for key in objects:
+        result = objects[key]
+        if(result[0] is None):
+            continue
+        results.append(result[0])
+    
+    if(len(results) <= 0):
+        return None
+    
+    # Sort results
+    results = sorted(results, key=lambda x: (x['score']))
+    top_result = results[-1] if len(results) > 0 else None
+    return top_result
+
+
+def handle(source, result):
+    global success, not_found
+
+    if(result is not None):
+        score = "%.2f" % result['score']
+        result = music(title=f"{result['result'][1]['artist']['name']} - {result['result'][1]['title']}", link=result['result'][1]['link'])
         data.prnt(f"[SUCCESS] [{score}pts] {result.title}")
         success += 1
         data.hookout(type="status", status="found")
-        add_to_json(status="found", score=score, original=source.link, found=result.link, query=source.title)
+        add_to_json(status="found", score=score, original=source.link, found=result.link, query=source.title[1])
         file_overview.write(
-            output.table_row(status="Success", score=score, original=source.link, original_title=source.name, found=result.link, found_title=result.title, query=source.title))
+            output.table_row(status="Success", score=score, original=source.link, original_title=source.name, found=result.link, found_title=result.title, query=source.title[1]))
     else:
         data.prnt(f"[ERROR] Not found {source.name}")
         not_found += 1
         result = source
         file_fail.write(f"notfound:{source.link}\n")
+        add_to_json(status="not_found", original=source.link, query=source.title[1])
         file_overview.write(
-            output.table_row(status="Not found", original=source.link, original_title=source.name, query=source.title))
+            output.table_row(status="Not found", original=source.link, original_title=source.name, query=source.title[1]))
     file_output.write(f"{source.link}\n")
 
 
@@ -223,25 +262,42 @@ def handle_youtube_result(video, i=0):
                 file_overview.write(output.table_row(status="Res error", original=source.link, original_title=source.name))
         else:
             data.hookout(type="status", status="checking", message=source.name)
-            data.prnt("\n=== " + source.name + " ===")
+            data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {source.name} ==={constants.colors.ENDC}")
             source.filename = f"{settings.temp_dir}audio.wav"
             youtube_platform.download(f"https://youtu.be/{video['id']}", source.filename)
             source.length = float(ffmpeg.probe(source.filename)['format']['duration']).__floor__()
-            if(not youtube_platform.is_mix(video=video, length=source.length)):
-                data.hookout(type="data_type", dataType="track")
-                find(source)
-            else:
-                data.prnt("[WARN] Trying experimental method to get all songs of the mix...")
-                data.hookout(type="data_type", dataType="mix")
+
+            music_type = music_type=music_data.detect_type(source.name, source.length)
+            # Search by metadata
+            by_default = find(source=source, music_type=music_type, only_metadata=False)
+            # Search by uploader - title
+            source.title = youtube_platform.parse(video, youtube_platform.parse_method.UPLOADER_TITLE)
+            by_uploader_title = find(source=source, music_type=music_type, only_metadata=True)
+            # Search by title only
+            source.title = youtube_platform.parse(video, youtube_platform.parse_method.TITLE_ONLY)
+            by_title_only = find(source=source, music_type=music_type, only_metadata=True)
+            
+            result = rank_find(query=source.title, by_default=by_default, by_uploader_title=by_uploader_title, by_title_only=by_title_only)
+            handle(source, result)
+
             os.remove(settings.temp_dir + "audio.wav")
-        data.hookout(type="progress", now=i+1, total=total, notfound=not_found)
+        data.hookout(type="progress", now=i+1, total=total, not_found=not_found)
     except Exception as e:
-        data.prnt("[ERROR] Handling error at index " + str(i))
-        data.prnt(traceback.format_exc())
-        file_fail.write("handleerror:" + str(i) + "\n")
-        data.hookout(type="error", message="handling_error")
-        file_overview.write(
-            output.table_row(status="Handling error", original=source.link, original_title=source.name))
+        try:
+            data.prnt("[ERROR] Handling error at index " + str(i))
+            data.prnt(traceback.format_exc())
+            file_fail.write("handleerror:" + str(i) + "\n")
+            data.hookout(type="error", message="handling_error")
+
+            # Catch if source isn't referenced yet
+            source.link = source.link
+
+            file_overview.write(
+                output.table_row(status="Handling error", original=source.link, original_title=source.name))
+        except:
+            file_overview.write(
+                output.table_row(status="Handling error", original_title=f"Index: {str(i)}"))
+
 
 def handle_youtube(url):
     global success, not_found, total
@@ -265,50 +321,59 @@ def handle_youtube(url):
             else:
                 video = result
                 handle_youtube_result(video)
-    
-    data.prnt('============================')
-    data.prnt('Finished: ' + "{:.2f}".format((success/total)*100) + "% success (Total: " + str(total) + ", Not found: " + str(not_found) + ")")
 
-data.hookout(type="status", status="start", id=run_id)
 
-# Write header to overview file
-file_overview.write(constants.gen_output_html(name=__name__, version=__version__, author=__author__, run_id=run_id, overview_version=3))
+if __name__ == "__main__":
+    data.hookout(type="status", status="start", id=run_id)
 
-platform = settings.settings.destination
-if("deezer" in platform):
-    data.prnt("Using Deezer as Target Platform")
-    data.hookout(type="target_platform", platform="deezer")
-else:
-    data.prnt("Unsupported destination platform")
-    data.hookout(type="target_platform", platform="")
-    sys.exit()
+    # Write header to overview file
+    file_overview.write(constants.gen_output_html(name=__appname__, version=__version__, author=__author__, run_id=run_id, overview_version=3))
 
-url = settings.settings.URL
-if("youtu" in url):
-    data.hookout(type="source_platform", platform="youtube")
-    handle_youtube(url)
-else:
-    data.prnt("Unsupported source platform")
-    data.hookout(type="source_platform", platform="")
-    sys.exit()
+    # Determine destination platform
+    platform = settings.settings.destination
+    if("deezer" in platform):
+        data.prnt("Using Deezer as Target Platform")
+        data.hookout(type="target_platform", platform="deezer")
+    else:
+        data.prnt("Unsupported destination platform")
+        data.hookout(type="target_platform", platform="")
+        sys.exit()
 
-# Write options to file
-dict_settings = settings.settings.__dict__
-dict_settings['name'] = __name__
-dict_settings['author'] = __author__
-dict_settings['version'] = __version__
-file_options.write(json.dumps(dict_settings))
+    # Determine source platform
+    url = settings.settings.URL
+    if("youtu" in url):
+        data.hookout(type="source_platform", platform="youtube")
+        handle_youtube(url)
+    else:
+        data.prnt("Unsupported source platform")
+        data.hookout(type="source_platform", platform="")
+        sys.exit()
 
-# Output result
-data.hookout(type="result", result=output_json)
-file_output_json.write(json.dumps(output_json))
-file_overview.write(constants.gen_output_html(start=False))
+    # Write options to file
+    dict_settings = settings.settings.__dict__
+    dict_settings['name'] = __appname__
+    dict_settings['author'] = __author__
+    dict_settings['version'] = __version__
+    file_options.write(json.dumps(dict_settings))
 
-# Clean up remaining temp files & Close files
-shutil.rmtree(settings.temp_dir)
-file_output.close()
-file_fail.close()
-file_unavailable.close()
-file_options.close()
+    # Output result
+    data.hookout(type="result", result=output_json)
+    file_output_json.write(json.dumps(output_json))
+    file_overview.write(constants.gen_output_html(start=False))
 
-data.hookout(type="status", status="end", id=run_id)
+    data.prnt('='*32)
+    success_rate = "{:.2f}".format((success/total)*100)
+    runtime = (datetime.now() - run_start)
+    result_info = f"Finished: {success_rate}% success (Total: {total}, Not found: {not_found})\nRuntime: {runtime}"
+    data.hookout(type="result_info", success_rate=float(success_rate), total=total, not_found=not_found, runtime=runtime.total_seconds())
+    data.prnt(result_info)
+    file_overview.write("<p>" + result_info.replace("\n", "<br />") + "</p>")
+
+    data.hookout(type="status", status="end", id=run_id)
+
+    # Clean up remaining temp files & Close files
+    shutil.rmtree(settings.temp_dir)
+    file_output.close()
+    file_fail.close()
+    file_unavailable.close()
+    file_options.close()

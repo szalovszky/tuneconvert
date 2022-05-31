@@ -136,12 +136,14 @@ class deezer_platform:
                     break
         return res
 
-    def check_result(query, result, featured_artists = False):
-        if(result == None):
+    def check_result(query, result, featured_artists=False, is_remix=False):
+        if(result is None):
             return None
         seperate = isinstance(query, list)
 
         try:
+            if(type(result) is dict):
+                raise TypeError
             iterator = iter(result)
         except TypeError:
             result_item = result
@@ -160,18 +162,18 @@ class deezer_platform:
                             pass
                     artist_sum = ""
                     for m_artist in result_item['contributors']:
-                        artist_sum += music_data.filter_data(m_artist['name'], "", constants.dontneed, constants.dontneed_wholeword)[0] + " "
+                        artist_sum += music_data.filter_data(m_artist['name'], "", is_remix=is_remix)[0] + " "
                     artist = ' '.join(data.unique_list(artist_sum.split()))
-                artist_filtered = music_data.filter_data(artist, "", constants.dontneed, constants.dontneed_wholeword)[0]
-                title_filtered = music_data.filter_data("", result_item['title'], constants.dontneed, constants.dontneed_wholeword)[1]
+                artist_filtered = music_data.filter_data(artist, "", is_remix=is_remix)[0]
+                title_filtered = music_data.filter_data("", result_item['title'], is_remix=is_remix)[1]
                 artist_certainty = data.similar(query[0], artist_filtered)
                 title_certainty = data.similar(query[1], title_filtered)
-                if((artist_certainty < constants.similarity_threshold) or (title_certainty < constants.similarity_threshold)):
+                if(((query[0] != "") and(artist_certainty < constants.similarity_threshold)) or (title_certainty < constants.similarity_threshold)):
                     return False
                 else:
                     return [((artist_certainty + title_certainty)/2), result_item]
             else:
-                result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], constants.dontneed, constants.dontneed_wholeword))
+                result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], is_remix=is_remix))
                 certainty = data.similar(query, result_filtered)
                 if(certainty < constants.similarity_threshold):
                     return False
@@ -198,13 +200,13 @@ class deezer_platform:
                                         pass
                                 artist_sum = ""
                                 for m_artist in result_item['contributors']:
-                                    artist_sum += music_data.filter_data(m_artist['name'], "", constants.dontneed, constants.dontneed_wholeword)[0] + " "
+                                    artist_sum += music_data.filter_data(m_artist['name'], "", is_remix=is_remix)[0] + " "
                                 artist = ' '.join(data.unique_list(artist_sum.split()))
-                            artist_filtered = music_data.filter_data(artist, "", constants.dontneed, constants.dontneed_wholeword)[0]
-                            title_filtered = music_data.filter_data("", result_item['title'], constants.dontneed, constants.dontneed_wholeword)[1]
+                            artist_filtered = music_data.filter_data(artist, "", is_remix=is_remix)[0]
+                            title_filtered = music_data.filter_data("", result_item['title'], is_remix=is_remix)[1]
                             artist_certainty = data.similar(query[0], artist_filtered)
                             title_certainty = data.similar(query[1], title_filtered)
-                            if((artist_certainty < constants.similarity_threshold) or (title_certainty < constants.similarity_threshold)):
+                            if(((query[0] != "") and(artist_certainty < constants.similarity_threshold)) or (title_certainty < constants.similarity_threshold)):
                                 pass
                             else:
                                 if(artist_certainty > most_certain[1]):
@@ -212,7 +214,7 @@ class deezer_platform:
                                 if((artist_certainty > most_certain[1]) and (title_certainty > most_certain[2])):
                                     most_certain = [result_item, artist_certainty, title_certainty]
                         else:
-                            result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], constants.dontneed, constants.dontneed_wholeword))
+                            result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], is_remix=is_remix))
                             certainty = data.similar(query, result_filtered)
                             if(certainty < constants.similarity_threshold):
                                 pass
@@ -385,28 +387,7 @@ class youtube_platform:
             except:
                 return None
 
-    def is_mix(video, length=0):
-        if(not settings.settings.experimental_mix):
-            return False
-        if(length == 0):
-            length = video['duration']
-        title = video['title'].lower()
-
-        mix_certainty = 0.0
-
-
-        if("album" in title):
-            mix_certainty += 0.325
-
-        if(length >= 750):
-            mix_certainty += 1.0
-
-
-        if(mix_certainty > 1.0):
-            return True
-        return False
-
-    def parse(video, parse_method=0):
+    def parse(video, parse_method=0, is_remix=False):
         if(video is None):
             return None
         if(parse_method == 0):
@@ -431,9 +412,7 @@ class youtube_platform:
             artist = ""
             title = video['title']
 
-        return music_data.filter_data(
-                artist=artist, title=title, filter_list=constants.dontneed, 
-                filter_word_list=constants.dontneed_wholeword)
+        return music_data.filter_data(artist=artist, title=title, is_remix=False)
 
 class shazam_platform:
     async def recognize(filename):

@@ -1,8 +1,9 @@
 similarity_threshold = 0.275
+mix_length_treshold = 750
 link_timeout = 10
 
 dontneed = [
-    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶", "🎧",
+    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶",
     "music video", "videoclip", "videoklip", "prod", "version", "album",
     "official", "hivatalos", "radio edit", "full song",
     "lyrics", "lyric", "dalszöveg", "dirty", "explicit",
@@ -13,19 +14,6 @@ dontneed_wholeword = [
     "feat", "by", "ft", "km",
     "hd", "4k",
 ]
-
-src_names = {
-    -1: "MixGet_Shazam",
-    0: "DeezerTrackMethod0",
-    1: "DeezerTrackMethod0_FA",
-    2: "DescriptionLinkParse",
-    3: "Startpage_Deezer",
-    4: "DeezerTrackMethod1",
-    5: "DeezerTrackMethod2",
-    6: "DeezerAlbum",
-    7: "Shazam",
-    8: "DuckDuckGo_Deezer"
-}
 
 user_agents = ["Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36",
@@ -112,9 +100,3 @@ class colors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-
-def src_name(src):
-    if(src > (len(src_names)-1)):
-        return ""
-    else:
-        return src_names[src]
