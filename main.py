@@ -302,9 +302,11 @@ def handle_youtube_result(video, i=0):
             # Catch if source isn't referenced yet
             source.link = source.link
 
+            add_to_json(status="handle_error", original=source.link, index=i)
             file_overview.write(
                 output.table_row(status="Handling error", original=source.link, original_title=source.name))
         except:
+            add_to_json(status="handle_error", index=i)
             file_overview.write(
                 output.table_row(status="Handling error", original_title=f"Index: {str(i)}"))
 
