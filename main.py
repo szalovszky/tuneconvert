@@ -211,6 +211,8 @@ def rank_find(query, **objects):
 
     for key in objects:
         result = objects[key]
+        if(result is None):
+            continue
         if(result[0] is None):
             continue
         results.append(result[0])
@@ -251,7 +253,9 @@ def handle_youtube_result(video, i=0):
     global json_index
     try:
         res = youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT)
-        source = music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}")
+        music_type = music_type=music_data.detect_type(video['title'], video['duration'])
+        is_remix = (music_type is music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
+        source = music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, is_remix), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}")
         if(res is None):
             if(video is None):
                 data.hookout(type="error", message="video_not_found")
@@ -270,14 +274,17 @@ def handle_youtube_result(video, i=0):
             youtube_platform.download(f"https://youtu.be/{video['id']}", source.filename)
             source.length = float(ffmpeg.probe(source.filename)['format']['duration']).__floor__()
 
-            music_type = music_type=music_data.detect_type(source.name, source.length)
             # Search by metadata
-            by_default = find(source=source, music_type=music_type, only_metadata=False)
+            by_default = None
+            if(not is_remix):
+                by_default = find(source=source, music_type=music_type, only_metadata=False)
             # Search by uploader - title
-            source.title = youtube_platform.parse(video, youtube_platform.parse_method.UPLOADER_TITLE)
-            by_uploader_title = find(source=source, music_type=music_type, only_metadata=True)
+            by_uploader_title = None
+            if(not is_remix):
+                source.title = youtube_platform.parse(video, youtube_platform.parse_method.UPLOADER_TITLE, is_remix)
+                by_uploader_title = find(source=source, music_type=music_type, only_metadata=True)
             # Search by title only
-            source.title = youtube_platform.parse(video, youtube_platform.parse_method.TITLE_ONLY)
+            source.title = youtube_platform.parse(video, youtube_platform.parse_method.TITLE_ONLY, is_remix)
             by_title_only = find(source=source, music_type=music_type, only_metadata=True)
             
             result = rank_find(query=source.title, by_default=by_default, by_uploader_title=by_uploader_title, by_title_only=by_title_only)

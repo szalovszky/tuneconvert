@@ -65,6 +65,9 @@ class data:
         h.update(string)
         return h.hexdigest()
 
+    def asciify(string):
+        return unicodedata.normalize('NFD', string).encode('ascii', 'ignore').decode()
+
 class music:
     name = ""
     title = ""
@@ -97,7 +100,7 @@ class music_data:
         if((("mix" in title) and ("remix" not in title)) or ("full album" in title) or (length > constants.mix_length_threshold)):
             return music.type.MIX_OR_ALBUM
 
-        if(("instrumental" in title) or ("cover" in title) or ("remix" in title) or ("bootleg" in title)):
+        if any(trigger in title for trigger in constants.REMIX_OR_COVER_OR_INSTRUMENTAL_triggers):
             return music.type.REMIX_OR_COVER_OR_INSTRUMENTAL
 
         return music.type.DEFAULT
@@ -106,12 +109,37 @@ class music_data:
         # Convert all fields to lowercase (search engines don't like cased queries for some reason and it filtering also takes place in lowercase)
         artist = artist.lower()
         title = title.lower()
+        
+        title_extra_info = ""
+
+        # Filter out only necessary information if the song is a remix
+        if(is_remix):
+            brackets = []
+            brackets.append(re.findall('\((.*?)\)', title))
+            brackets.append(re.findall('\[(.*?)\]', title))
+            brackets.append(re.findall('\|(.*?)\|', title))
+            
+            # Merge list
+            brackets = [j for i in brackets for j in i]
+
+            # Format list
+            extra_info = []
+            for info in brackets:
+                extra_info.append(data.asciify(" ".join(info.split())))
+
+            if(len(extra_info) > 0):
+                for info in extra_info:
+                    if any(trigger in info for trigger in constants.REMIX_OR_COVER_OR_INSTRUMENTAL_triggers):
+                        title_extra_info += info
 
         # Remove unnecessary information between "()"s, "[]"s, "||"s and "\\"s (ex. Official Music Video)
         title = re.sub(r'\([\s\S]*\)', '', title)
         title = re.sub(r'\[[\s\S]*\]', '', title)
         title = re.sub(r'\|[\s\S]*\|', '', title)
         title = re.sub(r'\\[\s\S]*\\', '', title)
+
+        # Re-add extra info to title
+        title += title_extra_info
 
         # Fix common problems with the artist field
         artist = artist.replace("/", " ").replace(";", " ").replace(" - Topic", "")
@@ -161,7 +189,7 @@ class music_data:
 
         # Ununicode some characters
         if(not settings.settings.force_unicode):
-            title = unicodedata.normalize('NFD', title).encode('ascii', 'ignore').decode()
+            title = data.asciify(title)
         
         # Cut out Unicode characters from the Title field
         if(not settings.settings.force_unicode):

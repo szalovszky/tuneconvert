@@ -412,7 +412,7 @@ class youtube_platform:
             artist = ""
             title = video['title']
 
-        return music_data.filter_data(artist=artist, title=title, is_remix=False)
+        return music_data.filter_data(artist=artist, title=title, is_remix=is_remix)
 
 class shazam_platform:
     async def recognize(filename):

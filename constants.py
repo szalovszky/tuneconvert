@@ -7,7 +7,7 @@ length_weight = 0.5
 dontneed = [
     "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶",
     "music video", "videoclip", "videoklip", "prod", "version", "album",
-    "official", "hivatalos", "radio edit", "full song",
+    "official", "hivatalos", "radio edit", "full song", "- edit",
     "lyrics", "lyric", "dalszöveg", "dirty", "explicit",
 ]
 
@@ -102,3 +102,5 @@ class colors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+REMIX_OR_COVER_OR_INSTRUMENTAL_triggers = ["remix", "bootleg", "instrumental", "cover"]
