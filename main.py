@@ -122,8 +122,7 @@ settings.info_logger = info_logger()
 
 class download_logger:
     def debug(self, msg):
-        # For compatibility with youtube-dl, both debug and info are passed into debug
-        # You can distinguish them by the prefix '[debug] '
+        # For compatibility with youtube-dl
         if msg.startswith('[debug] '):
             pass
         else:
@@ -152,7 +151,7 @@ def add_to_json(**objects):
 
 def add_result(results, result):
     if(result is not None):
-        id = data.hash(result['result'][1]['id'])
+        id = data.hash(result['result'][1]['link'])
         if(id in results):
             results[id]['score'] += 1.0
         else:
