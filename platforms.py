@@ -387,7 +387,7 @@ class youtube_platform:
             except:
                 return None
 
-    def parse(video, parse_method=youtube_platform.parse_method.DEFAULT, is_remix=False):
+    def parse(video, parse_method=parse_method.DEFAULT, is_remix=False):
         if(video is None):
             return None
         if(parse_method is youtube_platform.parse_method.DEFAULT):
