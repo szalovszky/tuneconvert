@@ -94,7 +94,7 @@ class music_data:
     def detect_type(title, length):
         title = title.lower()
 
-        if((("mix" in title) and ("remix" not in title)) or ("full album" in title) or (length > constants.mix_length_treshold)):
+        if((("mix" in title) and ("remix" not in title)) or ("full album" in title) or (length > constants.mix_length_threshold)):
             return music.type.MIX_OR_ALBUM
 
         if(("instrumental" in title) or ("cover" in title) or ("remix" in title) or ("bootleg" in title)):
