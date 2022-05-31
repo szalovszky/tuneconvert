@@ -1,5 +1,5 @@
 similarity_threshold = 0.275
-mix_length_treshold = 750
+mix_length_threshold = 750
 link_timeout = 10
 
 dontneed = [
