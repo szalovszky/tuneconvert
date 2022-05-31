@@ -387,10 +387,10 @@ class youtube_platform:
             except:
                 return None
 
-    def parse(video, parse_method=0, is_remix=False):
+    def parse(video, parse_method=youtube_platform.parse_method.DEFAULT, is_remix=False):
         if(video is None):
             return None
-        if(parse_method == 0):
+        if(parse_method is youtube_platform.parse_method.DEFAULT):
             # Get Artist and Title field from YouTube
             if("artist" not in video):
                 # No copyright field, try to parse it from video title
@@ -405,10 +405,10 @@ class youtube_platform:
                 # There is a copyright field on the video, use that
                 artist = video['artist'].lower()
                 title = video['track'].lower()
-        elif(parse_method == 1):
+        elif(parse_method is youtube_platform.parse_method.UPLOADER_TITLE):
             artist = video['uploader']
             title = video['title']
-        elif(parse_method == 2):
+        elif(parse_method is youtube_platform.parse_method.TITLE_ONLY):
             artist = ""
             title = video['title']
 
