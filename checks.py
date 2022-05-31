@@ -16,20 +16,20 @@ class check_result:
         self.score = score
         self.result = result
 
-    def gen(query, result):
-        result_check = deezer_platform.check_result(query=query, result=result)
+    def gen(query, result, is_remix=False):
+        result_check = deezer_platform.check_result(query=query, result=result, is_remix=is_remix)
         if(result_check is not None):
             if(not result_check):
                 return None
         return result if result is None else check_result(id=data.hash(str(result_check)), score=1, result=result_check).__dict__
 
 class deezer_check:
-    def track(query):
+    def track(query, is_remix=False):
         if(not settings.settings.no_deezertrack):
             deezer_result = deezer_platform.search_track(query)
-            return check_result.gen(query, deezer_result)
+            return check_result.gen(query, deezer_result, is_remix=is_remix)
     
-    def album(query):
+    def album(query, is_remix=False):
         if(not settings.settings.no_deezeralbum):
             try:
                 iterator = iter(query)
@@ -38,40 +38,40 @@ class deezer_check:
             else:
                 query = " ".join(query)
             deezer_result = deezer_platform.search_album(query)
-            return check_result.gen(query, deezer_result)
+            return check_result.gen(query, deezer_result, is_remix=is_remix)
 
 class startpage_check:
-    def search(query):
+    def search(query, is_remix=False):
         if(not settings.settings.no_startpage):
             deezer_result = None
             startpage_result = startpage_platform.search_track(query, use_spotify=False)
             if(startpage_result is not None):
                 deezer_result = deezer_platform.tracklink(startpage_result)
-            return check_result.gen(query, deezer_result)
+            return check_result.gen(query, deezer_result, is_remix=is_remix)
 
 class duckduckgo_check:
-    def search(query):
-        if(settings.settings.experimental_ddg):
+    def search(query, is_remix=False):
+        if(not settings.settings.no_ddg):
             deezer_result = None
             ddg_result = ddg_platform.search_track(query, use_spotify=False)
             if(ddg_result is not None):
                 deezer_result = deezer_platform.tracklink(ddg_result)
-            return check_result.gen(query, deezer_result)
+            return check_result.gen(query, deezer_result, is_remix=is_remix)
 
 loop = asyncio.get_event_loop()
 
 class shazam_check:
-    def search(query, filename):
+    def search(query, filename, is_remix=False):
         global loop
         if(not settings.settings.no_shazam):
             deezer_result = None
             shazam = loop.run_until_complete(shazam_platform.recognize(filename))
             if(shazam is not None):
                 deezer_result = deezer_platform.isrc(shazam)
-            return check_result.gen(query, deezer_result)
+            return check_result.gen(query, deezer_result, is_remix=is_remix)
 
 class external_check:
-    def links(query, description):
+    def links(query, description, is_remix=False):
         if(not settings.settings.no_links):
             deezer_result = None
             links = music_data.check_links(description.replace("\n", " "))
@@ -82,4 +82,4 @@ class external_check:
                 elif(links[1] is not None):
                     isrc = links[1]
                     deezer_result = deezer_platform.isrc(isrc)
-            return check_result.gen(query, deezer_result)
+            return check_result.gen(query, deezer_result, is_remix=is_remix)

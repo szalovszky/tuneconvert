@@ -85,16 +85,33 @@ class music:
         self.link = link
         self.filename = filename
 
+    class type:
+        DEFAULT = 0
+        MIX_OR_ALBUM = 1
+        REMIX_OR_COVER_OR_INSTRUMENTAL = 2
+
 class music_data:
-    def filter_data(artist, title, filter_list, filter_word_list):
-        # Convert all fields to lowercase (search engines don't like cased queries for some reason and it doesn't need to be capitalized anyways)
+    def detect_type(title, length):
+        title = title.lower()
+
+        if((("mix" in title) and ("remix" not in title)) or ("full album" in title) or (length > constants.mix_length_treshold)):
+            return music.type.MIX_OR_ALBUM
+
+        if(("instrumental" in title) or ("cover" in title) or ("remix" in title) or ("bootleg" in title)):
+            return music.type.REMIX_OR_COVER_OR_INSTRUMENTAL
+
+        return music.type.DEFAULT
+
+    def filter_data(artist, title, is_remix=False):
+        # Convert all fields to lowercase (search engines don't like cased queries for some reason and it filtering also takes place in lowercase)
         artist = artist.lower()
         title = title.lower()
 
-        # Remove unnecessary information between "()"s and "[]"s and "||"s (ex. Official Music Video)
+        # Remove unnecessary information between "()"s, "[]"s, "||"s and "\\"s (ex. Official Music Video)
         title = re.sub(r'\([\s\S]*\)', '', title)
         title = re.sub(r'\[[\s\S]*\]', '', title)
         title = re.sub(r'\|[\s\S]*\|', '', title)
+        title = re.sub(r'\\[\s\S]*\\', '', title)
 
         # Fix common problems with the artist field
         artist = artist.replace("/", " ").replace(";", " ").replace(" - Topic", "")
@@ -104,21 +121,21 @@ class music_data:
         title = title.replace(", ", " ").replace(" x ", " ").replace(" ", " ")
 
         # Apply advanced filtering by replacing every instance of filtered words
-        for item in filter_list:
+        for item in constants.dontneed:
             artist = artist.replace(item, "")
             title = title.replace(item, "")
 
         # Apply advanced filtering by replacing full word matches of filtered words
         x = artist.split()
         for i in range(len(x)):
-            for word in filter_word_list:
+            for word in constants.dontneed_wholeword:
                 if(word.lower() == (x[i]).lower()):
                     x[i] = ""
         artist = " ".join(x)
 
         x = title.split()
         for i in range(len(x)):
-            for word in filter_word_list:
+            for word in constants.dontneed_wholeword:
                 if(word.lower() == (x[i]).lower()):
                     x[i] = ""
         title = " ".join(x)
@@ -222,11 +239,13 @@ class music_data:
 
 class output:
     def table_row(status="-", score="0", original="", original_title="-", found="", found_title="-", query="-"):
+        has_original = (original != '')
+        has_result = (found != '')
         row = "<tr>"
         row += f"<td>{status}</td>"
         row += f"<td>{score}pts</td>"
-        row += f"<td><a href='{original if original != '' else '?'}' target='_blank'>{original_title}</a></td>"
-        row += f"<td><a href='{found if found != '' else '?'}' target='_blank'>{found_title}</a></td>"
+        row += "<td>" + (('<a href="' + original + '" target="_blank">') if has_original else '') + f"{original_title}{'</a>' if has_original else ''}</td>"
+        row += "<td>" + (('<a href="' + found + '" target="_blank">') if has_result else '') + f"{found_title}{'</a>' if has_result else ''}</td>"
         row += f"<td><code>{query}</code></td>"
         row += "</tr>"
         return row
