@@ -83,3 +83,13 @@ class external_check:
                     isrc = links[1]
                     deezer_result = deezer_platform.isrc(isrc)
             return check_result.gen(query, deezer_result, is_remix=is_remix)
+
+class data_check:
+    def length(source_length, result_length):
+        if(not settings.settings.no_length):
+            difference = abs(result_length - source_length)
+            if(difference > constants.length_difference_threshold):
+                return 0.0
+            return (1.0-(difference/constants.length_difference_threshold))*constants.length_weight
+        else:
+            return 0.0

@@ -1,6 +1,8 @@
 similarity_threshold = 0.275
 mix_length_threshold = 750
 link_timeout = 10
+length_difference_threshold = 45
+length_weight = 0.5
 
 dontneed = [
     "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶",
