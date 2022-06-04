@@ -39,8 +39,7 @@ parser.add_argument("--force-unicode", default=False, help="Don't filter Unicode
 
 parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
 
-parser.add_argument("--experimental-search-ranking", default=False, help="[EXPERIMENTAL] Rank searches when querying", action='store_true')
-parser.add_argument("--experimental-bpm", default=False, help="[EXPERIMENTAL] Check source BPM and compare result's BPM", action='store_true')
+parser.add_argument("--legacy-search-ranking", default=False, help="Rank searches when querying (old method)", action='store_true')
 
 parser.add_argument("--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
 parser.add_argument("--no-links", default=False, help="Disable DescriptionLinkParse as a source", action='store_true')
@@ -169,13 +168,7 @@ success = 0
 not_found = 0
 
 def find(source, music_type=music.type.DEFAULT, only_metadata=False):
-    if(settings.settings.experimental_bpm):
-        data.hookout(type="status", status="checking_bpm")
-        data.prnt("Detecting source BPM... ", end='')
-        audio.cut_leading_silence(source.filename)
-        source.bpm = audio.detect_bpm(source.filename)
-        data.prnt(str(source.bpm))
-        data.hookout(type="bpm", bpm=source.bpm)
+    audio.cut_leading_silence(source.filename)
 
     is_remix = (music_type is music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
     results = {}
