@@ -7,7 +7,6 @@ from bs4 import BeautifulSoup
 import unicodedata
 import magic
 from pydub import AudioSegment
-import bpm_detector
 import numpy
 import math
 import traceback
@@ -304,30 +303,3 @@ class audio:
         end_trim = audio.leading_silence(sound.reverse())
         trimmed_sound = sound[start_trim:len(sound)-end_trim]
         trimmed_sound.export(filename, format="wav")
-
-    def detect_bpm(filename, window=3.0):
-        samps, fs = bpm_detector.read_wav(filename)
-        data = []
-        correl = []
-        n = 0
-        nsamps = len(samps)
-        window_samps = int(window * fs)
-        samps_ndx = 0
-        max_window_ndx = math.floor(nsamps / window_samps)
-        bpms = numpy.zeros(max_window_ndx)
-        # Iterate through all windows
-        for window_ndx in range(0, max_window_ndx):
-            data = samps[samps_ndx : samps_ndx + window_samps]
-            if not ((len(data) % window_samps) == 0):
-                raise AssertionError(str(len(data)))
-            bpm, correl_temp = bpm_detector.bpm_detector(data, fs)
-            if bpm is None:
-                continue
-            bpms[window_ndx] = bpm
-            correl = correl_temp
-            # Iterate at the end of the loop
-            samps_ndx = samps_ndx + window_samps
-            n = n + 1
-        #print(f"Median of collected windows' values: {numpy.median(bpms)}")
-        bpm = numpy.round(numpy.median(bpms)-0.005)
-        return int(bpm)
