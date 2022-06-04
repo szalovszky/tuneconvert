@@ -1,4 +1,3 @@
-import sys
 import asyncio
 
 from utils import data

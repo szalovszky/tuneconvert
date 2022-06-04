@@ -7,13 +7,10 @@ from bs4 import BeautifulSoup
 import unicodedata
 import magic
 from pydub import AudioSegment
-import numpy
-import math
 import traceback
 from urllib.parse import urlparse
 import random
 import hashlib
-import inspect
 
 import settings
 import constants
