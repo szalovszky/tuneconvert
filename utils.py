@@ -5,7 +5,7 @@ import json
 import requests
 from bs4 import BeautifulSoup
 import unicodedata
-import magic
+import mimetypes
 from pydub import AudioSegment
 import traceback
 from urllib.parse import urlparse
@@ -276,8 +276,7 @@ class output:
 
 class file:
     def determine_mime(filename): 
-        mime = magic.Magic(mime=True)
-        mime = mime.from_file(filename)
+        mime = mimetypes.guess_type(filename)[0]
         if mime != None:
             mime = mime.split('/')
             return mime
