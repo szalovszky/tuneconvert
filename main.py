@@ -168,8 +168,6 @@ success = 0
 not_found = 0
 
 def find(source, music_type=music.type.DEFAULT, only_metadata=False):
-    audio.cut_leading_silence(source.filename)
-
     is_remix = (music_type is music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
     results = {}
     
@@ -265,6 +263,7 @@ def handle_youtube_result(video, i=0):
             data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {source.name} ==={constants.colors.ENDC}")
             source.filename = f"{settings.temp_dir}audio.wav"
             youtube_platform.download(f"https://youtu.be/{video['id']}", source.filename)
+            audio.cut_leading_silence(source.filename)
             source.length = float(ffmpeg.probe(source.filename)['format']['duration']).__floor__()
 
             # Search by metadata
