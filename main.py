@@ -243,22 +243,15 @@ def handle(source, result):
 def handle_youtube_result(video, i=0):
     global json_index
     try:
-        res = youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT)
-        music_type = music_type=music_data.detect_type(video['title'], video['duration'])
-        is_remix = (music_type is music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
-        source = music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, is_remix), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}")
-        if(res is None):
-            if(video is None):
-                data.hookout(type="error", message="video_not_found")
-                data.prnt("======")
-                data.prnt(f"Video not found at index {str(i)}")
-                file_fail.write(f"fatalerror:{str(i)}\n")
-                file_overview.write(output.table_row(status="Video not found"))
-            else:
-                data.hookout(type="error", message="general_error")
-                file_fail.write(f"generror:{source.link}:{source.name}\n")
-                file_overview.write(output.table_row(status="Res error", original=source.link, original_title=source.name))
+        if(video is None):
+            data.hookout(type="error", message="video_not_found")
+            data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {constants.colors.FAIL}NOT FOUND{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+            file_fail.write(f"fatalerror:{i}\n")
+            file_overview.write(output.table_row(status="Video not found"))
         else:
+            music_type = music_type=music_data.detect_type(video['title'], video['duration'])
+            is_remix = (music_type is music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
+            source = music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, is_remix), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}")
             data.hookout(type="status", status="checking", message=source.name)
             data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {source.name} ==={constants.colors.ENDC}")
             source.filename = f"{settings.temp_dir}audio.wav"
