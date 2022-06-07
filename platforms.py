@@ -69,10 +69,12 @@ class deezer_platform:
                 res = platforms.deezer_platform.deezer_client.request("GET", "track/isrc:" + isrc, resource_type=deezer.Track)
                 success = True
             except Exception as e:
-                if("quota" in str(e).lower()):
+                e = str(e).lower()
+                if("quota" in e):
                     time.sleep(1)
                 else:
-                    print(traceback.format_exc())
+                    if("no data" not in e):
+                        print(traceback.format_exc())
                     res = None
                     break
         return res
@@ -87,7 +89,8 @@ class deezer_platform:
                 if("quota" in str(e).lower()):
                     time.sleep(1)
                 else:
-                    print(traceback.format_exc())
+                    if("no data" not in e):
+                        print(traceback.format_exc())
                     res = None
                     break
         return res
@@ -104,7 +107,8 @@ class deezer_platform:
                 if("quota" in str(e).lower()):
                     time.sleep(1)
                 else:
-                    print(traceback.format_exc())
+                    if("no data" not in e):
+                        print(traceback.format_exc())
                     res = None
                     break
         return res
