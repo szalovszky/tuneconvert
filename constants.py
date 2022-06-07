@@ -103,4 +103,4 @@ class colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-REMIX_OR_COVER_OR_INSTRUMENTAL_triggers = ["remix", "bootleg", "instrumental", "cover"]
+REMIX_OR_COVER_OR_INSTRUMENTAL_triggers = ["remix", "bootleg", "instrumental", "cover", "frenchcore", "nightcore"]
