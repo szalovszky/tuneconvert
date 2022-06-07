@@ -37,9 +37,10 @@ class data:
         # Patch up ffmpeg output
         string = string.replace("[info]", "[INFO]").replace("[download]", "[DOWNLOAD]")
         # Add color to output
-        string = string.replace("[INFO]", f"{constants.colors.OKCYAN}[INFO]{constants.colors.ENDC}").replace("[WARN]", f"{constants.colors.WARNING}[WARN]{constants.colors.ENDC}").replace("[SUCCESS]", f"{constants.colors.OKGREEN}[SUCCESS]{constants.colors.ENDC}").replace("[ERROR]", f"{constants.colors.FAIL}[ERROR]{constants.colors.ENDC}").replace("[DOWNLOAD]", f"{constants.colors.HEADER}[DOWNLOAD]{constants.colors.ENDC}").replace("[ExtractAudio]", f"{constants.colors.HEADER}[ExtractAudio]{constants.colors.ENDC}")
-        print(string, end=end)
-        settings.logger.info(string)
+        colored_output = string.replace("[INFO]", f"{constants.colors.OKCYAN}[INFO]{constants.colors.ENDC}").replace("[WARN]", f"{constants.colors.WARNING}[WARN]{constants.colors.ENDC}").replace("[SUCCESS]", f"{constants.colors.OKGREEN}[SUCCESS]{constants.colors.ENDC}").replace("[ERROR]", f"{constants.colors.FAIL}[ERROR]{constants.colors.ENDC}").replace("[DOWNLOAD]", f"{constants.colors.HEADER}[DOWNLOAD]{constants.colors.ENDC}").replace("[ExtractAudio]", f"{constants.colors.HEADER}[ExtractAudio]{constants.colors.ENDC}")
+        
+        print(colored_output, end=end)
+        settings.logger.info(data.remove_color(string))
 
     def hookout(**objects):
         if(settings.settings.hook):
@@ -63,6 +64,14 @@ class data:
 
     def asciify(string):
         return unicodedata.normalize('NFD', string).encode('ascii', 'ignore').decode()
+
+    def censor_words(source, prohibited_words, replace_with=""):
+        result = re.compile('|'.join(map(re.escape, prohibited_words)))
+        result = result.sub(replace_with, source)
+        return result
+
+    def remove_color(source):
+        return data.censor_words(source, constants.colors.list)
 
 class music:
     name = ""
