@@ -3,7 +3,6 @@ import asyncio
 from utils import data
 from platforms import *
 import constants
-from timeout import timeout
 
 class check_result:
     id = ""
@@ -73,14 +72,17 @@ class external_check:
     def links(query, description, is_remix=False):
         if(not settings.settings.no_links):
             deezer_result = None
-            links = music_data.check_links(description.replace("\n", " "))
-            if(links is not None):
-                if(links[0] is not None):
-                    id = links[0]
-                    deezer_result = deezer_platform.trackid(id)
-                elif(links[1] is not None):
-                    isrc = links[1]
-                    deezer_result = deezer_platform.isrc(isrc)
+            try:
+                links = music_data.check_links(description.replace("\n", " "))
+                if(links is not None):
+                    if(links[0] is not None):
+                        id = links[0]
+                        deezer_result = deezer_platform.trackid(id)
+                    elif(links[1] is not None):
+                        isrc = links[1]
+                        deezer_result = deezer_platform.isrc(isrc)
+            except Exception as e:
+                data.prnt(f"[WARN] {e}")
             return check_result.gen(query, deezer_result, is_remix=is_remix)
 
 class data_check:
