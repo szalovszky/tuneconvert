@@ -14,11 +14,11 @@ $ cd tuneconvert
 ```
 Install the required pip packages using
 ```bash
-$ pip3 install -r requirements.txt
+$ pip install -r requirements.txt
 ```
 Lastly, launch it
 ```bash
-$ python3 main.py <SourceURL> <DestinationPlatform>
+$ python main.py <SourceURL> <DestinationPlatform>
 ```
 ## Usage
 Read more [on the wiki](https://github.com/szalovszky/tuneconvert/wiki)
