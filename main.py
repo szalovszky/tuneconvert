@@ -31,7 +31,7 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
 # Add arguments
-parser = argparse.ArgumentParser(description="yt2deezer", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description="tuneconvert", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
 parser.add_argument("--force-emojis", default=False, help="Don't filter emojis out of metadata", action='store_true')
