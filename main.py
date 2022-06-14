@@ -60,6 +60,8 @@ config = vars(args)
 
 settings.settings = args
 
+history = []
+
 # Generate unique run ID
 run_id = str(int(time.time())).encode('utf-8') + str(''.join(random.choices(string.ascii_uppercase + string.digits, k=8))).encode('utf-8')
 run_id = data.hash(run_id)
@@ -253,6 +255,11 @@ def handle_youtube_result(video, i=0):
             music_type = music_type=music_data.detect_type(video['title'], video['duration'])
             is_remix = (music_type is music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
             source = music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, is_remix), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}")
+            if(source.link in history):
+                data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {constants.colors.FAIL}DUPLICATE, SKIPPING{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+                return False
+            else:
+                history.append(source.link)
             data.hookout(type="status", status="checking", message=source.name)
             data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {source.name} ==={constants.colors.ENDC}")
             source.filename = f"{settings.temp_dir}audio.wav"
