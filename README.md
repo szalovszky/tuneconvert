@@ -3,6 +3,7 @@
 - Python (>3.8)
 - yt-dlp
 - ffmpeg
+- pip packages in `requirements.txt`
 ## Install
 Firstly, clone the repository
 ```bash
