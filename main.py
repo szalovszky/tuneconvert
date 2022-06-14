@@ -1,3 +1,4 @@
+#!/bin/python
 __appname__ = "tuneconvert"
 __version__ = '0.2'
 __author__ = 'Szalovszky David'
