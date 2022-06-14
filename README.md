@@ -1,5 +1,5 @@
 # tuneconvert
-## Dependencies
+## Dependencies ([help](https://github.com/szalovszky/tuneconvert/wiki/Installing-dependencies))
 - Python (>3.8)
 - yt-dlp
 - ffmpeg
