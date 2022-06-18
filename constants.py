@@ -105,4 +105,4 @@ class colors:
 
     list = [HEADER, OKBLUE, OKCYAN, OKGREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
 
-REMIX_OR_COVER_OR_INSTRUMENTAL_triggers = ["remix", "bootleg", "instrumental", "cover", "frenchcore", "nightcore"]
+REMIX_OR_COVER_OR_INSTRUMENTAL_triggers = ["remix", "bootleg", "instrumental", "cover", "frenchcore", "nightcore", "unplugged"]
