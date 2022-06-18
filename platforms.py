@@ -455,7 +455,7 @@ class shazam_platform:
                                 found_isrc = isrc
                                 search = False
                             else:
-                                if(last_isrc != "0"):
+                                if(last_isrc != "0" and segment != 1):
                                     data.prnt("Different result, continuing...")
                                 last_isrc = isrc
                         except:
