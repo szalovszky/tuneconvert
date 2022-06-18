@@ -5,13 +5,9 @@
 - ffmpeg
 - pip packages in `requirements.txt`
 ## Install
-Firstly, clone the repository
+Firstly, clone & enter the repository
 ```bash
-$ git clone https://github.com/szalovszky/tuneconvert
-```
-Change into the repo's directory
-```bash
-$ cd tuneconvert
+$ git clone https://github.com/szalovszky/tuneconvert && cd tuneconvert
 ```
 Install the required pip packages using
 ```bash
