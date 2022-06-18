@@ -149,6 +149,9 @@ class music_data:
         # Fix common problems with the artist field
         artist = artist.replace("/", " ").replace(";", " ").replace(" - Topic", "")
 
+        # Fix common problems with the title field
+        title = title.replace(".-", " ")
+
         # Apply basic filtering
         artist = artist.replace(", ", " ").replace(" x ", " ").replace(";", " ")
         title = title.replace(", ", " ").replace(" x ", " ").replace(" ", " ")
