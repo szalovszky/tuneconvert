@@ -1,7 +1,9 @@
 #!/bin/python
 __appname__ = "tuneconvert"
-__version__ = '0.2'
-__author__ = 'Szalovszky David'
+__version__ = "0.2"
+__int_version__ = 20
+__srv_version__ = "1.0"
+__author__ = "Szalovszky David"
 
 import random
 import string
@@ -13,6 +15,7 @@ import shutil
 import json
 import sys
 import traceback
+import time
 from datetime import datetime
 
 run_start = datetime.now()
@@ -64,6 +67,8 @@ file_unavailable = open(settings.working_dir + 'unavailable.txt', 'w', encoding=
 file_options = open(settings.working_dir + 'options.json', 'w', encoding="utf-8")
 
 last_video_id = ""
+
+submission_user_agent = f"{__author__}/{__appname__}/{__version__}"
 
 class info_logger:
     def debug(self, msg):
@@ -303,14 +308,16 @@ if __name__ == "__main__":
     # Add arguments
     parser = argparse.ArgumentParser(description="tuneconvert", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
+    # Filtering
     parser.add_argument("--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
     parser.add_argument("--force-emojis", default=False, help="Don't filter emojis out of metadata", action='store_true')
     parser.add_argument("--force-unicode", default=False, help="Don't filter Unicode text out of metadata", action='store_true')
 
-    parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
+    # Tuneconvert Online
+    parser.add_argument("--disagree", default=False, help="Reset Tuneconvert Online terms agreement state", action='store_true')
+    parser.add_argument("--no-submission", default=False, help="Disable score submission to the Tuneconvert Online but also disables usage of data stored there", action='store_true')
 
-    parser.add_argument("--legacy-search-ranking", default=False, help="Rank searches when querying (old method)", action='store_true')
-
+    # Sources
     parser.add_argument("--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
     parser.add_argument("--no-links", default=False, help="Disable DescriptionLinkParse as a source", action='store_true')
     parser.add_argument("--no-deezertrack", default=False, help="Disable DeezerTrack as a source", action='store_true')
@@ -319,7 +326,12 @@ if __name__ == "__main__":
     parser.add_argument("--no-ddg", default=False, help="Disable DuckDuckGo as a source", action='store_true')
     parser.add_argument("--no-length", default=False, help="Disable Length as a check measure", action='store_true')
 
+    # Misc.
     parser.add_argument("--hook", default=False, help="Special argument", action='store_true')
+
+    parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
+
+    parser.add_argument("--legacy-search-ranking", default=False, help="Rank searches when querying (old method)", action='store_true')
 
     parser.add_argument("URL", help="Source Playlist/Song")
     parser.add_argument("destination", help="Target Platform to sync to")
@@ -329,10 +341,37 @@ if __name__ == "__main__":
 
     settings.settings = args
 
+    if(settings.settings.disagree):
+        file_license = open(constants.license_file_name, 'w', encoding="utf-8")
+        file_license.write(str(-1))
+        file_license.close()
+    if(not settings.settings.no_submission):
+        show_warn = True
+        if(not os.path.exists(constants.license_file_name)):
+            file_license = open(constants.license_file_name, 'w', encoding="utf-8")
+            file_license.write(str(__int_version__))
+            file_license.close()
+        else:
+            file_license_read = open(constants.license_file_name, 'r', encoding="utf-8")
+            read_version = int(file_license_read.readlines()[0])
+            file_license_read.close()
+            if(read_version < __int_version__):
+                file_license = open(constants.license_file_name, 'w', encoding="utf-8")
+                file_license.write(str(__int_version__))
+                file_license.close()
+            else:
+                show_warn = False
+        if(show_warn):
+            data.prnt("⚠️  By continuing to use the Tuneconvert Online services, you accept these terms and conditions: https://szalovszky.com/tuneconvert/online/terms")
+            data.prnt("You can disable Tuneconvert Online by using the `--no-submission`")
+            data.prnt("Operation will continue in 10 seconds...")
+            data.prnt("")
+            time.sleep(10)
+
     data.hookout(type="status", status="start", id=run_id)
 
     # Write header to overview file
-    file_overview.write(constants.gen_output_html(name=__appname__, version=__version__, author=__author__, run_id=run_id, overview_version=3))
+    file_overview.write(constants.gen_output_html(name=__appname__, version=__version__, srv_version=__srv_version__, author=__author__, run_id=run_id, overview_version=3))
 
     # Determine destination platform
     platform = settings.settings.destination
@@ -359,6 +398,7 @@ if __name__ == "__main__":
     dict_settings['name'] = __appname__
     dict_settings['author'] = __author__
     dict_settings['version'] = __version__
+    dict_settings['srv-version'] = __srv_version__
     file_options.write(json.dumps(dict_settings))
 
     # Output result
