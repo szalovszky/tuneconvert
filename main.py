@@ -29,36 +29,7 @@ from checks import deezer_check, startpage_check, duckduckgo_check, shazam_check
 # TODO: Fix this
 # Supress Asyncio deprecation warning
 import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning) 
-
-# Add arguments
-parser = argparse.ArgumentParser(description="tuneconvert", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-parser.add_argument("--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
-parser.add_argument("--force-emojis", default=False, help="Don't filter emojis out of metadata", action='store_true')
-parser.add_argument("--force-unicode", default=False, help="Don't filter Unicode text out of metadata", action='store_true')
-
-parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
-
-parser.add_argument("--legacy-search-ranking", default=False, help="Rank searches when querying (old method)", action='store_true')
-
-parser.add_argument("--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
-parser.add_argument("--no-links", default=False, help="Disable DescriptionLinkParse as a source", action='store_true')
-parser.add_argument("--no-deezertrack", default=False, help="Disable DeezerTrack as a source", action='store_true')
-parser.add_argument("--no-deezeralbum", default=False, help="Disable DeezerAlbum as a source", action='store_true')
-parser.add_argument("--no-startpage", default=False, help="Disable Startpage as a source", action='store_true')
-parser.add_argument("--no-ddg", default=False, help="Disable DuckDuckGo as a source", action='store_true')
-parser.add_argument("--no-length", default=False, help="Disable Length as a check measure", action='store_true')
-
-parser.add_argument("--hook", default=False, help="Special argument", action='store_true')
-
-parser.add_argument("URL", help="Source Playlist/Song")
-parser.add_argument("destination", help="Target Platform to sync to")
-
-args = parser.parse_args()
-config = vars(args)
-
-settings.settings = args
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 history = []
 
@@ -329,6 +300,35 @@ def handle_youtube(url):
 
 
 if __name__ == "__main__":
+    # Add arguments
+    parser = argparse.ArgumentParser(description="tuneconvert", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument("--force-year", default=False, help="Don't filter year out of metadata", action='store_true')
+    parser.add_argument("--force-emojis", default=False, help="Don't filter emojis out of metadata", action='store_true')
+    parser.add_argument("--force-unicode", default=False, help="Don't filter Unicode text out of metadata", action='store_true')
+
+    parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
+
+    parser.add_argument("--legacy-search-ranking", default=False, help="Rank searches when querying (old method)", action='store_true')
+
+    parser.add_argument("--no-shazam", default=False, help="Disable Shazam as a source", action='store_true')
+    parser.add_argument("--no-links", default=False, help="Disable DescriptionLinkParse as a source", action='store_true')
+    parser.add_argument("--no-deezertrack", default=False, help="Disable DeezerTrack as a source", action='store_true')
+    parser.add_argument("--no-deezeralbum", default=False, help="Disable DeezerAlbum as a source", action='store_true')
+    parser.add_argument("--no-startpage", default=False, help="Disable Startpage as a source", action='store_true')
+    parser.add_argument("--no-ddg", default=False, help="Disable DuckDuckGo as a source", action='store_true')
+    parser.add_argument("--no-length", default=False, help="Disable Length as a check measure", action='store_true')
+
+    parser.add_argument("--hook", default=False, help="Special argument", action='store_true')
+
+    parser.add_argument("URL", help="Source Playlist/Song")
+    parser.add_argument("destination", help="Target Platform to sync to")
+
+    args = parser.parse_args()
+    config = vars(args)
+
+    settings.settings = args
+
     data.hookout(type="status", status="start", id=run_id)
 
     # Write header to overview file
