@@ -228,7 +228,7 @@ def handle(source, result, submit=True):
 
 
 def handle_youtube_result(video, i=0):
-    global json_index
+    global total, json_index
     try:
         if(video is None):
             data.hookout(type="error", message="video_not_found")
@@ -241,6 +241,7 @@ def handle_youtube_result(video, i=0):
             source = objects.music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, is_remix), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}", length=video['duration'])
             if(source.link in history):
                 data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {constants.colors.FAIL}DUPLICATE, SKIPPING{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+                total -= 1
                 return False
             else:
                 history.append(source.link)
