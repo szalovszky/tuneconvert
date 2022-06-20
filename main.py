@@ -16,6 +16,8 @@ import json
 import sys
 import traceback
 import time
+import platform
+import requests
 from datetime import datetime
 
 run_start = datetime.now()
@@ -25,9 +27,11 @@ import ffmpeg
 
 import constants
 from platforms import ddg_platform, startpage_platform, deezer_platform, youtube_platform, shazam_platform
-from utils import data, music_data, file, output, audio, music
+from utils import data, music_data, file, output, audio
 import settings
 from checks import deezer_check, startpage_check, duckduckgo_check, shazam_check, external_check, data_check
+import online
+import objects
 
 # TODO: Fix this
 # Supress Asyncio deprecation warning
@@ -146,14 +150,14 @@ total = 1
 success = 0
 not_found = 0
 
-def find(source, music_type=music.type.DEFAULT, only_metadata=False):
-    is_remix = (music_type is music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
+def find(source, music_type=objects.music.type.DEFAULT, only_metadata=False):
+    is_remix = (music_type is objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
     results = {}
     
-    if((not settings.settings.force_mix_as_singular) and (music_type is music.type.MIX_OR_ALBUM)):
+    if((not settings.settings.force_mix_as_singular) and (music_type is objects.music.type.MIX_OR_ALBUM)):
         data.prnt("[WARN] Skipping mix or album... (not yet supported)")
     else:
-        if((settings.settings.force_mix_as_singular) and (music_type is music.type.MIX_OR_ALBUM)):
+        if((settings.settings.force_mix_as_singular) and (music_type is objects.music.type.MIX_OR_ALBUM)):
             data.prnt("[WARN] Forcing detected mix or album as a singular song. This may cause unaccurate results")
         add_result(source, results, deezer_check.track(source.title, is_remix))
         add_result(source, results, startpage_check.search(source.title, is_remix))
@@ -201,13 +205,14 @@ def handle(source, result):
 
     if(result is not None):
         score = "%.2f" % result['score']
-        result = music(title=f"{result['result'][1]['artist']['name']} - {result['result'][1]['title']}", link=result['result'][1]['link'])
+        result = objects.music(title=f"{result['result'][1]['artist']['name']} - {result['result'][1]['title']}", link=result['result'][1]['link'], id=result['result'][1]['id'], isrc=result['result'][1]['isrc'])
         data.prnt(f"[SUCCESS] [{score}pts] {result.title}")
         success += 1
         data.hookout(type="status", status="found")
         add_to_json(status="found", score=score, original=source.link, found=result.link, query=source.title)
         file_overview.write(
             output.table_row(status="Success", score=score, original=source.link, original_title=source.name, found=result.link, found_title=result.title, query=source.title[1]))
+        online.submit_result(source, result, settings.submitter_obj)
     else:
         data.prnt(f"[ERROR] Not found {source.name}")
         not_found += 1
@@ -216,6 +221,7 @@ def handle(source, result):
         add_to_json(status="not_found", original=source.link, query=source.title)
         file_overview.write(
             output.table_row(status="Not found", original=source.link, original_title=source.name, query=source.title))
+        online.submit_result(source, None, settings.submitter_obj)
     file_output.write(f"{source.link}\n")
 
 
@@ -229,8 +235,8 @@ def handle_youtube_result(video, i=0):
             file_overview.write(output.table_row(status="Video not found"))
         else:
             music_type = music_type=music_data.detect_type(video['title'], video['duration'])
-            is_remix = (music_type is music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
-            source = music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, is_remix), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}")
+            is_remix = (music_type is objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
+            source = objects.music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, is_remix), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}")
             if(source.link in history):
                 data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {constants.colors.FAIL}DUPLICATE, SKIPPING{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
                 return False
@@ -340,12 +346,16 @@ if __name__ == "__main__":
     config = vars(args)
 
     settings.settings = args
+    settings.srv_version = __srv_version__
+    online.headers = {'User-Agent': submission_user_agent}
 
     if(settings.settings.disagree):
         file_license = open(constants.license_file_name, 'w', encoding="utf-8")
         file_license.write(str(-1))
         file_license.close()
     if(not settings.settings.no_submission):
+        settings.settings.no_submission = not online.status()
+        settings.submitter_obj = objects.submitter(os=f"{platform.system()} {platform.release()}", version=__version__, int_version=__int_version__, author=__author__, appname=__appname__, ip_address=requests.get('https://api.ipify.org').content.decode('utf8'))
         show_warn = True
         if(not os.path.exists(constants.license_file_name)):
             file_license = open(constants.license_file_name, 'w', encoding="utf-8")
