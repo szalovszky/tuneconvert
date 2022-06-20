@@ -24,8 +24,9 @@ class music:
     link = ""
     filename = ""
     isrc = ""
+    remix = False
 
-    def __init__(self, name="", title="", description="", id="", bpm=0, length=0, link="", filename="", isrc=""):
+    def __init__(self, name="", title="", description="", id="", bpm=0, length=0, link="", filename="", isrc="", remix=False):
         self.name = name
         self.title = title
         self.description = description
@@ -35,8 +36,10 @@ class music:
         self.link = link
         self.filename = filename
         self.isrc = isrc
+        self.remix = remix
 
     class type:
+        ONLINE = -1
         DEFAULT = 0
         MIX_OR_ALBUM = 1
         REMIX_OR_COVER_OR_INSTRUMENTAL = 2
