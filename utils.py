@@ -15,6 +15,7 @@ import hashlib
 import settings
 import constants
 from timeout import timeout
+import objects
 
 class data:
     def similar(a, b):
@@ -73,42 +74,17 @@ class data:
     def remove_color(source):
         return data.censor_words(source, constants.colors.list)
 
-class music:
-    name = ""
-    title = ""
-    description = ""
-    id = ""
-    bpm = 0
-    length = 0
-    link = ""
-    filename = ""
-
-    def __init__(self, name="", title="", description="", id="", bpm=0, length=0, link="", filename=""):
-        self.name = name
-        self.title = title
-        self.description = description
-        self.id = id
-        self.bpm = bpm
-        self.length = length
-        self.link = link
-        self.filename = filename
-
-    class type:
-        DEFAULT = 0
-        MIX_OR_ALBUM = 1
-        REMIX_OR_COVER_OR_INSTRUMENTAL = 2
-
 class music_data:
     def detect_type(title, length):
         title = title.lower()
 
         if((("mix" in title) and ("remix" not in title)) or ("full album" in title) or (length > constants.mix_length_threshold)):
-            return music.type.MIX_OR_ALBUM
+            return objects.music.type.MIX_OR_ALBUM
 
         if any(trigger in title for trigger in constants.REMIX_OR_COVER_OR_INSTRUMENTAL_triggers):
-            return music.type.REMIX_OR_COVER_OR_INSTRUMENTAL
+            return objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL
 
-        return music.type.DEFAULT
+        return objects.music.type.DEFAULT
 
     def filter_data(artist, title, is_remix=False):
         # Convert all fields to lowercase (search engines don't like cased queries for some reason and it filtering also takes place in lowercase)

@@ -6,6 +6,8 @@ length_weight = 0.5
 
 license_file_name = ".terms"
 
+api = "http://api.szalovszky.com/tuneconvert/"
+
 dontneed = [
     "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶",
     "music video", "videoclip", "videoklip", "prod", "version", "album",
