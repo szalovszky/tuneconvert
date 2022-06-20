@@ -11,7 +11,7 @@ headers = {'User-Agent': '-/tuneconvert/uninitialized'}
 def status():
     online_status = False
     try:
-        r = requests.get(url=f"{constants.api}{settings.srv_version}", headers=headers)
+        r = requests.get(url=f"{constants.api}{settings.srv_version}", headers=headers, timeout=10)
         if(not r.ok):
             raise requests.RequestException
         else:
