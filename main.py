@@ -378,6 +378,8 @@ if __name__ == "__main__":
 
     # Clean up remaining temp files & Close files
     shutil.rmtree(settings.temp_dir)
+    file_overview.close()
+    file_output_json.close()
     file_output.close()
     file_fail.close()
     file_unavailable.close()
