@@ -4,6 +4,8 @@ link_timeout = 10
 length_difference_threshold = 45
 length_weight = 0.5
 
+license_file_name = ".terms"
+
 dontneed = [
     "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶",
     "music video", "videoclip", "videoklip", "prod", "version", "album",
@@ -58,6 +60,7 @@ output_html_start = """<html>
     <meta name="app-name" content='${name}'>
     <meta name="app-author" content='${author}'>
     <meta name="app-version" content='${version}'>
+    <meta name="app-srv-version" content='${srv_version}'>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
