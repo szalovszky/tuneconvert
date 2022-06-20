@@ -38,3 +38,17 @@ def submit_result(source, result, submitter):
                 if(response['result'] != "ok"): raise Exception(f"Submission denied. Server status: {response['result']}")
         except Exception:
             data.prnt(traceback.format_exc())
+
+def get_song(source, submitter):
+    if(not settings.settings.no_submission):
+        try:
+            submission_data = {'source': source.__dict__, 'submitter': submitter.__dict__}
+            r = requests.post(url=f"{constants.api}{settings.srv_version}/get/song", json=submission_data, headers=headers)
+            if(not r.ok):
+                raise requests.RequestException
+            else:
+                response = json.loads(r.text)
+                if(response['result'] != "ok"): raise Exception(f"Get denied. Server status: {response['result']}")
+                return response
+        except Exception:
+            data.prnt(traceback.format_exc())
