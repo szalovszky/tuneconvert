@@ -83,7 +83,7 @@ output_html_start = """<html>
         <th>Score</th>
         <th>Original</th>
         <th>Found</th>
-        <th>Query</th>
+        <th>Detected type</th>
     </tr>"""
 
 output_html_end = """</table>

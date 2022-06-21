@@ -250,7 +250,7 @@ class music_data:
             return None
 
 class output:
-    def table_row(status="-", score="0", original="", original_title="-", found="", found_title="-", query="-"):
+    def table_row(status="-", score="0", original="", original_title="-", found="", found_title="-", music_type="-"):
         has_original = (original != '')
         has_result = (found != '')
         row = "<tr>"
@@ -258,7 +258,7 @@ class output:
         row += f"<td>{score}pts</td>"
         row += "<td>" + (('<a href="' + original + '" target="_blank">') if has_original else '') + f"{original_title}{'</a>' if has_original else ''}</td>"
         row += "<td>" + (('<a href="' + found + '" target="_blank">') if has_result else '') + f"{found_title}{'</a>' if has_result else ''}</td>"
-        row += f"<td><code>{query}</code></td>"
+        row += f"<td><code>{music_type}</code></td>"
         row += "</tr>"
         return row
 
