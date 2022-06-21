@@ -151,6 +151,7 @@ def add_result(source, results, result, no_scoring=False):
 total = 1
 success = 0
 not_found = 0
+online_found = 0
 
 def find(source, music_type=objects.music.type.DEFAULT, only_metadata=False):
     is_remix = (music_type is objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
@@ -206,9 +207,10 @@ def handle(source, result, submit=True):
     global success, not_found
 
     if(result is not None):
-        score = "%.2f" % result['score']
+        raw_score = result['score']
+        score = "%.2f" % raw_score
         result = objects.music(title=f"{(result['result'][1]['artist']['name'] + ' - ') if ('artist' in result['result'][1]) else ''}{result['result'][1]['title']}", link=result['result'][1]['link'], id=result['result'][1]['id'], isrc=result['result'][1]['isrc'])
-        data.prnt(f"[SUCCESS] [{score}pts] {result.title}")
+        data.prnt(f"[SUCCESS] [{(score + 'pts') if raw_score > 0.0 else 'Online'}] {result.title}")
         success += 1
         data.hookout(type="status", status="found")
         add_to_json(status="found", score=score, original=source.link, found=result.link, query=source.title)
@@ -228,7 +230,7 @@ def handle(source, result, submit=True):
 
 
 def handle_youtube_result(video, i=0):
-    global total, json_index
+    global total, online_found, json_index
     try:
         if(video is None):
             data.hookout(type="error", message="video_not_found")
@@ -255,9 +257,10 @@ def handle_youtube_result(video, i=0):
             if(is_online):
                 data.prnt("✅  Found result on Tuneconvert Online!")
                 result = online_result['song']
+                online_found += 1
                 # I know this is a crappy solution
-                result['score'] = 0.0
-                result['result'] = [0.0, online_result['song']]
+                result['score'] = -1.0
+                result['result'] = [-1.0, online_result['song']]
                 handle(source, result, submit=False)
             else:
                 youtube_platform.download(f"https://youtu.be/{video['id']}", source.filename)
@@ -281,7 +284,7 @@ def handle_youtube_result(video, i=0):
 
             if(os.path.exists(source.filename)):
                 os.remove(source.filename)
-        data.hookout(type="progress", now=i+1, total=total, not_found=not_found)
+        data.hookout(type="progress", now=i+1, total=total, not_found=not_found, online_found=online_found)
     except Exception as e:
         try:
             data.prnt("[ERROR] Handling error at index " + str(i))
@@ -436,8 +439,8 @@ if __name__ == "__main__":
     data.prnt('='*32)
     success_rate = "{:.2f}".format((success/total)*100)
     runtime = (datetime.now() - run_start)
-    result_info = f"Finished: {success_rate}% success (Total: {total}, Not found: {not_found})\nRuntime: {runtime}"
-    data.hookout(type="result_info", success_rate=float(success_rate), total=total, not_found=not_found, runtime=runtime.total_seconds())
+    result_info = f"Finished: {success_rate}% success (Total: {total}, Not found: {not_found}{', Tuneconvert Online: '+str(online_found) if not settings.settings.no_submission else ''})\nRuntime: {runtime}"
+    data.hookout(type="result_info", success_rate=float(success_rate), total=total, not_found=not_found, online_found=online_found, runtime=runtime.total_seconds())
     data.prnt(result_info)
     file_overview.write("<p>" + result_info.replace("\n", "<br />") + "</p>")
 
