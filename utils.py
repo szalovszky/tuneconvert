@@ -29,7 +29,7 @@ class data:
     def text_between(text, a, b):
         try:
             return re.search(rf'{a}(.*?){b}', text).group(1)
-        except:
+        except Exception:
             return None
 
     def prnt(string, end='\n'):
@@ -237,16 +237,16 @@ class music_data:
 
                                 search = False
                                 break
-                        except:
+                        except Exception:
                             pass
                     
                     if((res[0] == None) and (res[1] == None)):
                         res = None
-                except:
+                except Exception:
                     pass
             return res
-        except:
-            print(traceback.format_exc())
+        except Exception:
+            data.prnt(traceback.format_exc())
             return None
 
 class output:

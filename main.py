@@ -209,7 +209,11 @@ def handle(source, result, submit=True, music_type=objects.music.type.DEFAULT):
     if(result is not None):
         raw_score = result['score']
         score = "%.2f" % raw_score
-        result = objects.music(title=f"{(result['result'][1]['artist']['name'] + ' - ') if ('artist' in result['result'][1]) else ''}{result['result'][1]['title']}", link=result['result'][1]['link'], id=result['result'][1]['id'], isrc=result['result'][1]['isrc'])
+        if "isrc" in result['result'][1]:
+            isrc = result['result'][1]['isrc']
+        else:
+            isrc = ""
+        result = objects.music(title=f"{(result['result'][1]['artist']['name'] + ' - ') if ('artist' in result['result'][1]) else ''}{result['result'][1]['title']}", link=result['result'][1]['link'], id=result['result'][1]['id'], isrc=isrc)
         data.prnt(f"[SUCCESS] [{(score + 'pts') if raw_score > 0.0 else 'Online'}] {result.title}")
         success += 1
         data.hookout(type="status", status="found")
@@ -298,7 +302,7 @@ def handle_youtube_result(video, i=0):
             add_to_json(status="handle_error", original=source.link, index=i)
             file_overview.write(
                 output.table_row(status="Handling error", original=source.link, original_title=source.name))
-        except:
+        except Exception:
             add_to_json(status="handle_error", index=i)
             file_overview.write(
                 output.table_row(status="Handling error", original_title=f"Index: {str(i)}"))
