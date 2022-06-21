@@ -255,7 +255,7 @@ class output:
         has_result = (found != '')
         row = "<tr>"
         row += f"<td>{status}</td>"
-        row += f"<td>{score}pts</td>"
+        row += f"<td>{(score + 'pts') if float(score) >= 0.0 else '-'}</td>"
         row += "<td>" + (('<a href="' + original + '" target="_blank">') if has_original else '') + f"{original_title}{'</a>' if has_original else ''}</td>"
         row += "<td>" + (('<a href="' + found + '" target="_blank">') if has_result else '') + f"{found_title}{'</a>' if has_result else ''}</td>"
         row += f"<td><code>{music_type}</code></td>"
