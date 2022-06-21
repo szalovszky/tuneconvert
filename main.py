@@ -336,6 +336,7 @@ if __name__ == "__main__":
 
     # Tuneconvert Online
     parser.add_argument("--disagree", default=False, help="Reset Tuneconvert Online terms agreement state", action='store_true')
+    parser.add_argument("--opt-out", default=False, help="Opt-out of Tuneconvert Online's optional analytics", action='store_true')
     parser.add_argument("--no-submission", default=False, help="Disable score submission to the Tuneconvert Online but also disables usage of data stored there", action='store_true')
 
     # Sources
@@ -362,6 +363,7 @@ if __name__ == "__main__":
 
     settings.settings = args
     settings.srv_version = __srv_version__
+    if(settings.settings.opt_out): submission_user_agent += "/opt-out"
     online.headers = {'User-Agent': submission_user_agent}
 
     if(settings.settings.disagree):
@@ -388,7 +390,7 @@ if __name__ == "__main__":
                 show_warn = False
         if(show_warn):
             data.prnt("⚠️  By continuing to use the Tuneconvert Online services, you accept these terms and conditions: https://szalovszky.com/tuneconvert/online/terms")
-            data.prnt("You can disable Tuneconvert Online by using the `--no-submission`")
+            data.prnt("You can disable Tuneconvert Online by using `--no-submission` or only opt-out of analytics using `--opt-out`")
             data.prnt("Operation will continue in 10 seconds...")
             data.prnt("")
             time.sleep(10)
