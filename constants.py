@@ -37,6 +37,8 @@ dontsearch_links = [
     "youtu.be"
 ]
 
+horizontal_lines = ['–', '─', '‒', '−', ' ', '⁻', '₋', '—', 'ᜭ', '౼']
+
 output_html_start = """<html>
 <head>
     <style>
