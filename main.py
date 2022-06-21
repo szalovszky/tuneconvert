@@ -203,7 +203,7 @@ def rank_find(query, **objects):
     return top_result
 
 
-def handle(source, result, submit=True):
+def handle(source, result, submit=True, music_type=objects.music.type.DEFAULT):
     global success, not_found
 
     if(result is not None):
@@ -213,18 +213,18 @@ def handle(source, result, submit=True):
         data.prnt(f"[SUCCESS] [{(score + 'pts') if raw_score > 0.0 else 'Online'}] {result.title}")
         success += 1
         data.hookout(type="status", status="found")
-        add_to_json(status="found", score=score, original=source.link, found=result.link, query=source.title)
+        add_to_json(status="found", score=score, original=source.link, found=result.link, music_type=music_type)
         file_overview.write(
-            output.table_row(status="Success", score=score, original=source.link, original_title=source.name, found=result.link, found_title=result.title, query=source.title[1]))
+            output.table_row(status="Success", score=score, original=source.link, original_title=source.name, found=result.link, found_title=result.title, music_type=music_type))
         if(submit): online.submit_result(source, result, settings.submitter_obj)
     else:
         data.prnt(f"[ERROR] Not found {source.name}")
         not_found += 1
         result = source
         file_fail.write(f"notfound:{source.link}\n")
-        add_to_json(status="not_found", original=source.link, query=source.title)
+        add_to_json(status="not_found", original=source.link, music_type=music_type)
         file_overview.write(
-            output.table_row(status="Not found", original=source.link, original_title=source.name, query=source.title))
+            output.table_row(status="Not found", original=source.link, original_title=source.name, music_type=music_type))
         if(submit): online.submit_result(source, None, settings.submitter_obj)
     file_output.write(f"{source.link}\n")
 
