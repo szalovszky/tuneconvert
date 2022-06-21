@@ -128,6 +128,10 @@ class music_data:
         # Fix common problems with the title field
         title = title.replace(".-", " ")
 
+        # Replace invalid dashes in the title field
+        for dash in constants.horizontal_lines:
+            title = title.replace(dash, "-")
+
         # Apply basic filtering
         artist = artist.replace(", ", " ").replace(" x ", " ").replace(";", " ")
         title = title.replace(", ", " ").replace(" x ", " ").replace(" ", " ")
