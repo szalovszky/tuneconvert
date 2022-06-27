@@ -153,14 +153,14 @@ success = 0
 not_found = 0
 online_found = 0
 
-def find(source, music_type=objects.music.type.DEFAULT, only_metadata=False):
-    is_remix = (music_type is objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
+def find(source, only_metadata=False):
+    is_remix = (source.type is objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
     results = {}
-    
-    if((not settings.settings.force_mix_as_singular) and (music_type == objects.music.type.MIX_OR_ALBUM)):
+
+    if((not settings.settings.force_mix_as_singular) and (source.type == objects.music.type.MIX_OR_ALBUM)):
         data.prnt("[WARN] Skipping mix or album... (not yet supported)")
     else:
-        if((settings.settings.force_mix_as_singular) and (music_type == objects.music.type.MIX_OR_ALBUM)):
+        if((settings.settings.force_mix_as_singular) and (source.type == objects.music.type.MIX_OR_ALBUM)):
             data.prnt("[WARN] Forcing detected mix or album as a singular song. This may cause unaccurate results")
         add_result(source, results, deezer_check.track(source.title, is_remix))
         add_result(source, results, startpage_check.search(source.title, is_remix))
@@ -203,7 +203,7 @@ def rank_find(query, **objects):
     return top_result
 
 
-def handle(source, result, submit=True, music_type=objects.music.type.DEFAULT):
+def handle(source, result, submit=True):
     global success, not_found
 
     if(result is not None):
@@ -213,22 +213,22 @@ def handle(source, result, submit=True, music_type=objects.music.type.DEFAULT):
             isrc = result['result'][1]['isrc']
         else:
             isrc = ""
-        result = objects.music(title=f"{(result['result'][1]['artist']['name'] + ' - ') if ('artist' in result['result'][1]) else ''}{result['result'][1]['title']}", link=result['result'][1]['link'], id=result['result'][1]['id'], isrc=isrc)
+        result = objects.music(title=f"{(result['result'][1]['artist']['name'] + ' - ') if ('artist' in result['result'][1]) else ''}{result['result'][1]['title']}", link=result['result'][1]['link'], id=result['result'][1]['id'], isrc=isrc, type=source.type)
         data.prnt(f"[SUCCESS] [{(score + 'pts') if raw_score > 0.0 else 'Online'}] {result.title}")
         success += 1
         data.hookout(type="status", status="found")
-        add_to_json(status="found", score=score, original=source.link, found=result.link, music_type=objects.music.type.list[music_type])
+        add_to_json(status="found", score=score, original=source.link, found=result.link, music_type=objects.music.type.list[source.type])
         file_overview.write(
-            output.table_row(status="Success", score=score, original=source.link, original_title=source.name, found=result.link, found_title=result.title, music_type=objects.music.type.list[music_type]))
+            output.table_row(status="Success", score=score, original=source.link, original_title=source.name, found=result.link, found_title=result.title, music_type=objects.music.type.list[source.type]))
         if(submit): online.submit_result(source, result, settings.submitter_obj)
     else:
         data.prnt(f"[ERROR] Not found {source.name}")
         not_found += 1
         result = source
         file_fail.write(f"notfound:{source.link}\n")
-        add_to_json(status="not_found", original=source.link, music_type=objects.music.type.list[music_type])
+        add_to_json(status="not_found", original=source.link, music_type=objects.music.type.list[source.type])
         file_overview.write(
-            output.table_row(status="Not found", original=source.link, original_title=source.name, music_type=objects.music.type.list[music_type]))
+            output.table_row(status="Not found", original=source.link, original_title=source.name, music_type=objects.music.type.list[source.type]))
         if(submit): online.submit_result(source, None, settings.submitter_obj)
     file_output.write(f"{source.link}\n")
 
@@ -242,9 +242,9 @@ def handle_youtube_result(video, i=0):
             file_fail.write(f"fatalerror:{i}\n")
             file_overview.write(output.table_row(status="Video not found"))
         else:
-            music_type = music_type=music_data.detect_type(video['title'], video['duration'])
-            is_remix = (music_type is objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
-            source = objects.music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, is_remix), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}", length=video['duration'])
+            music_type = music_data.detect_type(video['title'], video['duration'])
+            is_remix = (music_type == objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL)
+            source = objects.music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, is_remix), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}", length=video['duration'], type=music_type)
             if(source.link in history):
                 data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {constants.colors.FAIL}DUPLICATE, SKIPPING{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
                 total -= 1
@@ -273,17 +273,17 @@ def handle_youtube_result(video, i=0):
                 # Search by metadata
                 by_default = None
                 if(not is_remix):
-                    by_default = find(source=source, music_type=music_type, only_metadata=False)
+                    by_default = find(source=source, only_metadata=False)
                 # Search by uploader - title
                 by_uploader_title = None
                 if(not is_remix):
                     source.title = youtube_platform.parse(video, youtube_platform.parse_method.UPLOADER_TITLE, is_remix)
-                    by_uploader_title = find(source=source, music_type=music_type, only_metadata=True)
+                    by_uploader_title = find(source=source, only_metadata=True)
                 # Search by title only
                 by_title_only = None
                 if(not (video['description'].startswith("Provided to YouTube by ") and video['description'].endswith("Auto-generated by YouTube."))):
                     source.title = youtube_platform.parse(video, youtube_platform.parse_method.TITLE_ONLY, is_remix)
-                    by_title_only = find(source=source, music_type=music_type, only_metadata=True)
+                    by_title_only = find(source=source, only_metadata=True)
                 
                 result = rank_find(query=source.title, by_default=by_default, by_uploader_title=by_uploader_title, by_title_only=by_title_only)
                 handle(source, result)
