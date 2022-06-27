@@ -11,6 +11,7 @@ import traceback
 from urllib.parse import urlparse
 import random
 import hashlib
+import inspect
 
 import settings
 import constants
@@ -73,6 +74,11 @@ class data:
 
     def remove_color(source):
         return data.censor_words(source, constants.colors.list)
+
+    def get_caller(class_name):
+        curframe = inspect.currentframe()
+        calframe = inspect.getouterframes(curframe, 2)
+        return f"{class_name.__name__.replace('_', ' ').title().replace(' ', '').replace('Check', '')}{calframe[1][3].title()}"
 
 class music_data:
     def detect_type(title, length):
