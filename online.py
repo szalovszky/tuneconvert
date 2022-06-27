@@ -29,7 +29,10 @@ def status():
 def submit_result(source, result, submitter):
     if(not settings.settings.no_submission):
         try:
-            submission_data = {'source': source.__dict__, 'result': result.__dict__, 'submitter': submitter.__dict__}
+            source = source.__dict__ if source != None else source
+            result = result.__dict__ if result != None else result
+            submitter = submitter.__dict__ if submitter != None else submitter
+            submission_data = {'source': source, 'result': result, 'submitter': submitter}
             r = requests.post(url=f"{constants.api}{settings.srv_version}/submit/result", json=submission_data, headers=headers)
             if(not r.ok):
                 raise requests.RequestException
@@ -42,7 +45,9 @@ def submit_result(source, result, submitter):
 def get_song(source, submitter):
     if(not settings.settings.no_submission):
         try:
-            submission_data = {'source': source.__dict__, 'submitter': submitter.__dict__}
+            source = source.__dict__ if source != None else source
+            submitter = submitter.__dict__ if submitter != None else submitter
+            submission_data = {'source': source, 'submitter': submitter}
             r = requests.post(url=f"{constants.api}{settings.srv_version}/get/song", json=submission_data, headers=headers)
             if(not r.ok):
                 raise requests.RequestException
