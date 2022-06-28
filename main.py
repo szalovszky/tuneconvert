@@ -1,7 +1,7 @@
 #!/bin/python
 __appname__ = "tuneconvert"
-__version__ = "0.2"
-__int_version__ = 20
+__version__ = "0.2.1"
+__int_version__ = 21
 __srv_version__ = "1.0"
 __author__ = "Szalovszky David"
 
