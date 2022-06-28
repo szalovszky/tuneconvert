@@ -36,7 +36,7 @@ class deezer_platform:
             with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
                 try:
                     ytdl.download(url)
-                except:
+                except Exception:
                     return None
 
     def search_track(query):
@@ -57,7 +57,7 @@ class deezer_platform:
                 if("quota" in str(e).lower()):
                     time.sleep(1)
                 else:
-                    print(traceback.format_exc())
+                    data.prnt(traceback.format_exc())
                     res = None
                     break
         return res
@@ -74,7 +74,7 @@ class deezer_platform:
                     time.sleep(1)
                 else:
                     if("no data" not in e):
-                        print(traceback.format_exc())
+                        data.prnt(traceback.format_exc())
                     res = None
                     break
         return res
@@ -90,7 +90,7 @@ class deezer_platform:
                     time.sleep(1)
                 else:
                     if("no data" not in e):
-                        print(traceback.format_exc())
+                        data.prnt(traceback.format_exc())
                     res = None
                     break
         return res
@@ -108,7 +108,7 @@ class deezer_platform:
                     time.sleep(1)
                 else:
                     if("no data" not in e):
-                        print(traceback.format_exc())
+                        data.prnt(traceback.format_exc())
                     res = None
                     break
         return res
@@ -135,7 +135,7 @@ class deezer_platform:
                 if("quota" in str(e).lower()):
                     time.sleep(1)
                 else:
-                    print(traceback.format_exc())
+                    data.prnt(traceback.format_exc())
                     res = None
                     break
         return res
@@ -153,7 +153,7 @@ class deezer_platform:
             result_item = result
             try:
                 result_item = result_item.as_dict()
-            except:
+            except Exception:
                 pass
             if(seperate):
                 artist = result_item['artist']['name']
@@ -162,7 +162,7 @@ class deezer_platform:
                         result_item = platforms.deezer_platform.trackid(str(result_item['id']))
                         try:
                             result_item = result_item.as_dict()
-                        except:
+                        except Exception:
                             pass
                     artist_sum = ""
                     for m_artist in result_item['contributors']:
@@ -170,6 +170,8 @@ class deezer_platform:
                     artist = ' '.join(data.unique_list(artist_sum.split()))
                 artist_filtered = music_data.filter_data(artist, "", is_remix=is_remix)[0]
                 title_filtered = music_data.filter_data("", result_item['title'], is_remix=is_remix)[1]
+                if("karaoke" in result_item['title'].lower()):
+                    return False
                 artist_certainty = data.similar(query[0], artist_filtered)
                 title_certainty = data.similar(query[1], title_filtered)
                 if(((query[0] != "") and(artist_certainty < constants.similarity_threshold)) or (title_certainty < constants.similarity_threshold)):
@@ -178,6 +180,8 @@ class deezer_platform:
                     return [((artist_certainty + title_certainty)/2), result_item]
             else:
                 result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], is_remix=is_remix))
+                if("karaoke" in result_item['title'].lower()):
+                    return False
                 certainty = data.similar(query, result_filtered)
                 if(certainty < constants.similarity_threshold):
                     return False
@@ -191,7 +195,7 @@ class deezer_platform:
                     for result_item in result:
                         try:
                             result_item = result_item.as_dict()
-                        except:
+                        except Exception:
                             pass
                         if(seperate):
                             artist = result_item['artist']['name']
@@ -200,7 +204,7 @@ class deezer_platform:
                                     result_item = platforms.deezer_platform.trackid(str(result_item['id']))
                                     try:
                                         result_item = result_item.as_dict()
-                                    except:
+                                    except Exception:
                                         pass
                                 artist_sum = ""
                                 for m_artist in result_item['contributors']:
@@ -208,6 +212,8 @@ class deezer_platform:
                                 artist = ' '.join(data.unique_list(artist_sum.split()))
                             artist_filtered = music_data.filter_data(artist, "", is_remix=is_remix)[0]
                             title_filtered = music_data.filter_data("", result_item['title'], is_remix=is_remix)[1]
+                            if("karaoke" in result_item['title'].lower()):
+                                pass
                             artist_certainty = data.similar(query[0], artist_filtered)
                             title_certainty = data.similar(query[1], title_filtered)
                             if(((query[0] != "") and(artist_certainty < constants.similarity_threshold)) or (title_certainty < constants.similarity_threshold)):
@@ -219,6 +225,8 @@ class deezer_platform:
                                     most_certain = [result_item, artist_certainty, title_certainty]
                         else:
                             result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], is_remix=is_remix))
+                            if("karaoke" in result_item['title'].lower()):
+                                pass
                             certainty = data.similar(query, result_filtered)
                             if(certainty < constants.similarity_threshold):
                                 pass
@@ -234,7 +242,7 @@ class deezer_platform:
                     if("quota" in str(e).lower()):
                         time.sleep(1)
                     else:
-                        print(traceback.format_exc())
+                        data.prnt(traceback.format_exc())
                         return None
 
 class ddg_platform:
@@ -258,7 +266,7 @@ class ddg_platform:
                 res = []
                 if("If this error persists, please let us know" in str(page.content)):
                     delay *= 2
-                    print(f"You are being ratelimited, waiting {delay} seconds before retrying...")
+                    data.prnt(f"You are being ratelimited, waiting {delay} seconds before retrying...")
                     if(delay >= 30):
                         success = True
                         res = False
@@ -279,7 +287,7 @@ class ddg_platform:
                 success = True
                 return res
             except Exception:
-                print(traceback.format_exc())
+                data.prnt(traceback.format_exc())
                 return None
 
     def search_track(query, use_spotify = False):
@@ -302,7 +310,7 @@ class ddg_platform:
 
             return res
         except Exception as e:
-            print(e)
+            data.prnt(e)
             return None
 
 class startpage_platform:
@@ -336,7 +344,7 @@ class startpage_platform:
                 success = True
                 return res
             except Exception as e:
-                print(e)
+                data.prnt(e)
                 return None
 
     def search_track(query, use_spotify = False):
@@ -359,7 +367,7 @@ class startpage_platform:
 
             return res
         except Exception as e:
-            print(e)
+            data.prnt(e)
             return None
 
 class youtube_platform:
@@ -388,7 +396,7 @@ class youtube_platform:
         with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
             try:
                 ytdl.download(url)
-            except:
+            except Exception:
                 return None
 
     def parse(video, parse_method=parse_method.DEFAULT, is_remix=False):
@@ -455,10 +463,10 @@ class shazam_platform:
                                 found_isrc = isrc
                                 search = False
                             else:
-                                if(last_isrc != "0"):
+                                if(last_isrc != "0" and segment != 1):
                                     data.prnt("Different result, continuing...")
                                 last_isrc = isrc
-                        except:
+                        except Exception:
                             data.prnt("Segment not found.")
                 if os.path.exists(file):
                     os.remove(file)

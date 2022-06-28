@@ -1,8 +1,12 @@
 similarity_threshold = 0.275
 mix_length_threshold = 750
-link_timeout = 10
+link_timeout = 20
 length_difference_threshold = 45
 length_weight = 0.5
+
+license_file_name = ".terms"
+
+api = "http://api.szalovszky.com/tuneconvert/"
 
 dontneed = [
     "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶",
@@ -33,6 +37,8 @@ dontsearch_links = [
     "youtu.be"
 ]
 
+horizontal_lines = ['–', '─', '‒', '−', ' ', '⁻', '₋', '—', 'ᜭ', '౼']
+
 output_html_start = """<html>
 <head>
     <style>
@@ -58,6 +64,7 @@ output_html_start = """<html>
     <meta name="app-name" content='${name}'>
     <meta name="app-author" content='${author}'>
     <meta name="app-version" content='${version}'>
+    <meta name="app-srv-version" content='${srv_version}'>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
@@ -78,7 +85,7 @@ output_html_start = """<html>
         <th>Score</th>
         <th>Original</th>
         <th>Found</th>
-        <th>Query</th>
+        <th>Detected type</th>
     </tr>"""
 
 output_html_end = """</table>
