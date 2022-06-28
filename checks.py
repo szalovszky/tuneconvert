@@ -24,11 +24,13 @@ class check_result:
 class deezer_check:
     def track(query, is_remix=False):
         if(not settings.settings.no_deezertrack):
+            data.hookout(type="status", status="check", check=data.get_caller(__class__))
             deezer_result = deezer_platform.search_track(query)
             return check_result.gen(query, deezer_result, is_remix=is_remix)
     
     def album(query, is_remix=False):
         if(not settings.settings.no_deezeralbum):
+            data.hookout(type="status", status="check", check=data.get_caller(__class__))
             try:
                 iterator = iter(query)
             except TypeError:
@@ -41,6 +43,7 @@ class deezer_check:
 class startpage_check:
     def search(query, is_remix=False):
         if(not settings.settings.no_startpage):
+            data.hookout(type="status", status="check", check=data.get_caller(__class__))
             deezer_result = None
             startpage_result = startpage_platform.search_track(query, use_spotify=False)
             if(startpage_result is not None):
@@ -50,6 +53,7 @@ class startpage_check:
 class duckduckgo_check:
     def search(query, is_remix=False):
         if(not settings.settings.no_ddg):
+            data.hookout(type="status", status="check", check=data.get_caller(__class__))
             deezer_result = None
             ddg_result = ddg_platform.search_track(query, use_spotify=False)
             if(ddg_result is not None):
@@ -62,6 +66,7 @@ class shazam_check:
     def search(query, filename, is_remix=False):
         global loop
         if(not settings.settings.no_shazam):
+            data.hookout(type="status", status="check", check=data.get_caller(__class__))
             deezer_result = None
             shazam = loop.run_until_complete(shazam_platform.recognize(filename))
             if(shazam is not None):
@@ -71,6 +76,7 @@ class shazam_check:
 class external_check:
     def links(query, description, is_remix=False):
         if(not settings.settings.no_links):
+            data.hookout(type="status", status="check", check=data.get_caller(__class__))
             deezer_result = None
             try:
                 links = music_data.check_links(description.replace("\n", " "))

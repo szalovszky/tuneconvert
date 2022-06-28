@@ -541,3 +541,4 @@ audio*
 .vscode/launch.json
 test.py
 .vscode/settings.json
+.terms

@@ -11,10 +11,12 @@ import traceback
 from urllib.parse import urlparse
 import random
 import hashlib
+import inspect
 
 import settings
 import constants
 from timeout import timeout
+import objects
 
 class data:
     def similar(a, b):
@@ -28,7 +30,7 @@ class data:
     def text_between(text, a, b):
         try:
             return re.search(rf'{a}(.*?){b}', text).group(1)
-        except:
+        except Exception:
             return None
 
     def prnt(string, end='\n'):
@@ -73,42 +75,22 @@ class data:
     def remove_color(source):
         return data.censor_words(source, constants.colors.list)
 
-class music:
-    name = ""
-    title = ""
-    description = ""
-    id = ""
-    bpm = 0
-    length = 0
-    link = ""
-    filename = ""
-
-    def __init__(self, name="", title="", description="", id="", bpm=0, length=0, link="", filename=""):
-        self.name = name
-        self.title = title
-        self.description = description
-        self.id = id
-        self.bpm = bpm
-        self.length = length
-        self.link = link
-        self.filename = filename
-
-    class type:
-        DEFAULT = 0
-        MIX_OR_ALBUM = 1
-        REMIX_OR_COVER_OR_INSTRUMENTAL = 2
+    def get_caller(class_name):
+        curframe = inspect.currentframe()
+        calframe = inspect.getouterframes(curframe, 2)
+        return f"{class_name.__name__.replace('_', ' ').title().replace(' ', '').replace('Check', '')}{calframe[1][3].title()}"
 
 class music_data:
     def detect_type(title, length):
         title = title.lower()
 
         if((("mix" in title) and ("remix" not in title)) or ("full album" in title) or (length > constants.mix_length_threshold)):
-            return music.type.MIX_OR_ALBUM
+            return objects.music.type.MIX_OR_ALBUM
 
         if any(trigger in title for trigger in constants.REMIX_OR_COVER_OR_INSTRUMENTAL_triggers):
-            return music.type.REMIX_OR_COVER_OR_INSTRUMENTAL
+            return objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL
 
-        return music.type.DEFAULT
+        return objects.music.type.DEFAULT
 
     def filter_data(artist, title, is_remix=False):
         # Convert all fields to lowercase (search engines don't like cased queries for some reason and it filtering also takes place in lowercase)
@@ -135,7 +117,7 @@ class music_data:
             if(len(extra_info) > 0):
                 for info in extra_info:
                     if any(trigger in info for trigger in constants.REMIX_OR_COVER_OR_INSTRUMENTAL_triggers):
-                        title_extra_info += info
+                        title_extra_info += f" {info}"
 
         # Remove unnecessary information between "()"s, "[]"s, "||"s and "\\"s (ex. Official Music Video)
         title = re.sub(r'\([\s\S]*\)', '', title)
@@ -148,6 +130,13 @@ class music_data:
 
         # Fix common problems with the artist field
         artist = artist.replace("/", " ").replace(";", " ").replace(" - Topic", "")
+
+        # Fix common problems with the title field
+        title = title.replace(".-", " ")
+
+        # Replace invalid dashes in the title field
+        for dash in constants.horizontal_lines:
+            title = title.replace(dash, "-")
 
         # Apply basic filtering
         artist = artist.replace(", ", " ").replace(" x ", " ").replace(";", " ")
@@ -258,28 +247,28 @@ class music_data:
 
                                 search = False
                                 break
-                        except:
+                        except Exception:
                             pass
                     
                     if((res[0] == None) and (res[1] == None)):
                         res = None
-                except:
+                except Exception:
                     pass
             return res
-        except:
-            print(traceback.format_exc())
+        except Exception:
+            data.prnt(traceback.format_exc())
             return None
 
 class output:
-    def table_row(status="-", score="0", original="", original_title="-", found="", found_title="-", query="-"):
+    def table_row(status="-", score="0", original="", original_title="-", found="", found_title="-", music_type="-"):
         has_original = (original != '')
         has_result = (found != '')
         row = "<tr>"
         row += f"<td>{status}</td>"
-        row += f"<td>{score}pts</td>"
+        row += f"<td>{(score + 'pts') if float(score) >= 0.0 else '-'}</td>"
         row += "<td>" + (('<a href="' + original + '" target="_blank">') if has_original else '') + f"{original_title}{'</a>' if has_original else ''}</td>"
         row += "<td>" + (('<a href="' + found + '" target="_blank">') if has_result else '') + f"{found_title}{'</a>' if has_result else ''}</td>"
-        row += f"<td><code>{query}</code></td>"
+        row += f"<td><code>{music_type}</code></td>"
         row += "</tr>"
         return row
 
