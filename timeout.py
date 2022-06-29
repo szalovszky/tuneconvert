@@ -3,11 +3,14 @@
 from threading import Thread
 import functools
 
+class TimeoutException(Exception):
+    pass
+
 def timeout(timeout):
     def deco(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            res = [Exception('function [%s] timeout [%s seconds] exceeded!' % (func.__name__, timeout))]
+            res = [TimeoutException(f"function [{func.__name__}] timeout [{timeout} seconds] exceeded!")]
             def newFunc():
                 try:
                     res[0] = func(*args, **kwargs)
