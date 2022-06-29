@@ -92,7 +92,7 @@ class music_data:
 
         return objects.music.type.DEFAULT
 
-    def filter_data(artist, title, is_remix=False):
+    def filter_data(artist, title, music_type=objects.music.type.DEFAULT):
         # Convert all fields to lowercase (search engines don't like cased queries for some reason and it filtering also takes place in lowercase)
         artist = artist.lower()
         title = title.lower()
@@ -100,7 +100,7 @@ class music_data:
         title_extra_info = ""
 
         # Filter out only necessary information if the song is a remix
-        if(is_remix):
+        if(music_type == objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL):
             brackets = []
             brackets.append(re.findall('\((.*?)\)', title))
             brackets.append(re.findall('\[(.*?)\]', title))
@@ -230,7 +230,7 @@ class music_data:
                     for elem in elems:
                         try:
                             link = elem["href"]
-                            if((link.startswith("https://www.deezer.com/")) and ("/album/" not in link)):
+                            if((link.startswith("https://www.deezer.com/")) and ("/track/" in link) and ("/album/" not in link) and ("/artist/" not in link) and ("/profile/" not in link)):
                                 if("?" in link):
                                     link = link.split("?")[0]
                                 res = [link.replace("https://www.deezer.com/track/", ""), res[1]]
