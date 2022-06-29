@@ -268,7 +268,8 @@ def handle_youtube_result(video, i=0):
                 handle(source, result, submit=False)
             else:
                 youtube_platform.download(f"https://youtu.be/{video['id']}", source.filename)
-                audio.cut_leading_silence(source.filename)
+                if(not settings.settings.no_cut):
+                    audio.cut_leading_silence(source.filename)
                 source.length = float(ffmpeg.probe(source.filename)['format']['duration']).__floor__()
                 # Search by metadata
                 by_default = None
@@ -359,6 +360,8 @@ if __name__ == "__main__":
 
     # Misc.
     parser.add_argument("--hook", default=False, help="Special argument", action='store_true')
+
+    parser.add_argument("--no-cut", default=False, help="Don't cut silence out of the cached audio files", action='store_true')
 
     parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
 
