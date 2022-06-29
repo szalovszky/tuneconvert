@@ -26,10 +26,10 @@ import yt_dlp
 import ffmpeg
 
 import constants
-from platforms import ddg_platform, startpage_platform, deezer_platform, youtube_platform, shazam_platform
+from platforms import youtube_platform
 from utils import data, music_data, file, output, audio
 import settings
-from checks import check_result, deezer_check, startpage_check, duckduckgo_check, shazam_check, external_check, data_check
+from checks import deezer_check, startpage_check, duckduckgo_check, shazam_check, external_check, data_check
 import online
 import objects
 
