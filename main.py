@@ -365,8 +365,6 @@ if __name__ == "__main__":
 
     parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
 
-    parser.add_argument("--legacy-search-ranking", default=False, help="Rank searches when querying (old method)", action='store_true')
-
     parser.add_argument("URL", help="Source Playlist/Song")
     parser.add_argument("destination", help="Target Platform to sync to")
 

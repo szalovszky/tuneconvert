@@ -244,8 +244,7 @@ class deezer_platform:
                             else:
                                 if(certainty > most_certain[1]):
                                     most_certain = [result_item, certainty, 0.0]
-                        if(not settings.settings.legacy_search_ranking):
-                            break
+                        break
                     certainty = most_certain[1] if most_certain[2] == 0.0 else ((most_certain[1] + most_certain[2])/2)
                     return [certainty, result_item]
                     iterate_success = True
