@@ -121,7 +121,7 @@ class deezer_platform:
                 res = platforms.deezer_platform.deezer_client.request("GET", "search/album?q=" + query, resource_type=deezer.Album)
                 if(len(res) > 0):
                     res = res[0].as_dict()
-                    if(res['record_type'] == "single"):
+                    if(res['record_type'] == "single" and res['tracklist'] != ""):
                         res = platforms.deezer_platform.deezer_client.request("GET", res['tracklist'].replace("https://api.deezer.com/", ""))
                         if(len(res) > 0):
                             res = res[0]
