@@ -50,6 +50,8 @@ class deezer_platform:
                     pass
                 else:
                     query = " ".join(query)
+                if(len(query) <= 2):
+                    return False
                 res = platforms.deezer_platform.deezer_client.search(query)
                 if(len(res) <= 0):
                     res = None
@@ -118,6 +120,8 @@ class deezer_platform:
         success = False
         while(not success):
             try:
+                if(len(query) <= 2):
+                    return False
                 res = platforms.deezer_platform.deezer_client.request("GET", "search/album?q=" + query, resource_type=deezer.Album)
                 if(len(res) > 0):
                     res = res[0].as_dict()
@@ -142,8 +146,8 @@ class deezer_platform:
         return res
 
     def check_result(query, result, featured_artists=False, music_type=objects.music.type.DEFAULT):
-        if(result is None):
-            return None
+        if((result is None) or (result is False)):
+            return False
         seperate = isinstance(query, list)
 
         try:
