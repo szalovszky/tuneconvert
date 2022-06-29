@@ -16,6 +16,7 @@ import constants
 from utils import data, music_data
 import platforms
 import settings
+import objects
 
 class deezer_platform:
     deezer_client = deezer.Client()
@@ -140,7 +141,7 @@ class deezer_platform:
                     break
         return res
 
-    def check_result(query, result, featured_artists=False, is_remix=False):
+    def check_result(query, result, featured_artists=False, music_type=objects.music.type.DEFAULT):
         if(result is None):
             return None
         seperate = isinstance(query, list)
@@ -166,10 +167,10 @@ class deezer_platform:
                             pass
                     artist_sum = ""
                     for m_artist in result_item['contributors']:
-                        artist_sum += music_data.filter_data(m_artist['name'], "", is_remix=is_remix)[0] + " "
+                        artist_sum += music_data.filter_data(m_artist['name'], "", music_type=music_type)[0] + " "
                     artist = ' '.join(data.unique_list(artist_sum.split()))
-                artist_filtered = music_data.filter_data(artist, "", is_remix=is_remix)[0]
-                title_filtered = music_data.filter_data("", result_item['title'], is_remix=is_remix)[1]
+                artist_filtered = music_data.filter_data(artist, "", music_type=music_type)[0]
+                title_filtered = music_data.filter_data("", result_item['title'], music_type=music_type)[1]
                 if("karaoke" in result_item['title'].lower()):
                     return False
                 artist_certainty = data.similar(query[0], artist_filtered)
@@ -179,7 +180,7 @@ class deezer_platform:
                 else:
                     return [((artist_certainty + title_certainty)/2), result_item]
             else:
-                result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], is_remix=is_remix))
+                result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], music_type=music_type))
                 if("karaoke" in result_item['title'].lower()):
                     return False
                 certainty = data.similar(query, result_filtered)
@@ -208,10 +209,10 @@ class deezer_platform:
                                         pass
                                 artist_sum = ""
                                 for m_artist in result_item['contributors']:
-                                    artist_sum += music_data.filter_data(m_artist['name'], "", is_remix=is_remix)[0] + " "
+                                    artist_sum += music_data.filter_data(m_artist['name'], "", music_type=music_type)[0] + " "
                                 artist = ' '.join(data.unique_list(artist_sum.split()))
-                            artist_filtered = music_data.filter_data(artist, "", is_remix=is_remix)[0]
-                            title_filtered = music_data.filter_data("", result_item['title'], is_remix=is_remix)[1]
+                            artist_filtered = music_data.filter_data(artist, "", music_type=music_type)[0]
+                            title_filtered = music_data.filter_data("", result_item['title'], music_type=music_type)[1]
                             if("karaoke" in result_item['title'].lower()):
                                 pass
                             artist_certainty = data.similar(query[0], artist_filtered)
@@ -224,7 +225,7 @@ class deezer_platform:
                                 if((artist_certainty > most_certain[1]) and (title_certainty > most_certain[2])):
                                     most_certain = [result_item, artist_certainty, title_certainty]
                         else:
-                            result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], is_remix=is_remix))
+                            result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], music_type=music_type))
                             if("karaoke" in result_item['title'].lower()):
                                 pass
                             certainty = data.similar(query, result_filtered)
@@ -399,7 +400,7 @@ class youtube_platform:
             except Exception:
                 return None
 
-    def parse(video, parse_method=parse_method.DEFAULT, is_remix=False):
+    def parse(video, parse_method=parse_method.DEFAULT, music_type=objects.music.type.DEFAULT):
         if(video is None):
             return None
         if(parse_method is youtube_platform.parse_method.DEFAULT):
@@ -424,7 +425,7 @@ class youtube_platform:
             artist = ""
             title = video['title']
 
-        return music_data.filter_data(artist=artist, title=title, is_remix=is_remix)
+        return music_data.filter_data(artist=artist, title=title, music_type=music_type)
 
 class shazam_platform:
     async def recognize(filename):
