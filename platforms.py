@@ -183,7 +183,10 @@ class deezer_platform:
                 if(((query[0] != "") and(artist_certainty < constants.similarity_threshold)) or (title_certainty < constants.similarity_threshold)):
                     return False
                 else:
-                    return [((artist_certainty + title_certainty)/2), result_item]
+                    certainty = ((artist_certainty + title_certainty)/2)
+                    if((music_type != objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL) and (any(trigger in result_item['title'] for trigger in constants.REMIX_OR_COVER_OR_INSTRUMENTAL_triggers))):
+                        certainty -= 0.5
+                    return [certainty, result_item]
             else:
                 result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], music_type=music_type))
                 if("karaoke" in result_item['title'].lower()):
@@ -192,6 +195,8 @@ class deezer_platform:
                 if(certainty < constants.similarity_threshold):
                     return False
                 else:
+                    if((music_type != objects.music.type.REMIX_OR_COVER_OR_INSTRUMENTAL) and (any(trigger in result_item['title'] for trigger in constants.REMIX_OR_COVER_OR_INSTRUMENTAL_triggers))):
+                        certainty -= 0.5
                     return [certainty, result_item]
         else:
             most_certain = ["", 0.0, 0.0]
