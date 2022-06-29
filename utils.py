@@ -230,7 +230,7 @@ class music_data:
                     for elem in elems:
                         try:
                             link = elem["href"]
-                            if((link.startswith("https://www.deezer.com/")) and ("/album/" not in link)):
+                            if((link.startswith("https://www.deezer.com/")) and ("/track/" in link) and ("/album/" not in link) and ("/artist/" not in link) and ("/profile/" not in link)):
                                 if("?" in link):
                                     link = link.split("?")[0]
                                 res = [link.replace("https://www.deezer.com/track/", ""), res[1]]

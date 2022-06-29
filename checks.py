@@ -87,8 +87,8 @@ class external_check:
                     elif(links[1] is not None):
                         isrc = links[1]
                         deezer_result = deezer_platform.isrc(isrc)
-            except Exception as e:
-                data.prnt(f"[WARN] {e}")
+            except Exception:
+                data.prnt(f"[WARN] {traceback.format_exc()}")
             return check_result.gen(query, deezer_result, music_type=music_type)
 
 class data_check:
