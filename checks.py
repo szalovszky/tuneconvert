@@ -1,4 +1,5 @@
 import asyncio
+from timeout import TimeoutException
 
 from utils import data
 from platforms import *
@@ -87,8 +88,10 @@ class external_check:
                     elif(links[1] is not None):
                         isrc = links[1]
                         deezer_result = deezer_platform.isrc(isrc)
+            except TimeoutException as te:
+                data.prnt(f"[WARN] {te}")
             except Exception:
-                data.prnt(f"[WARN] {traceback.format_exc()}")
+                data.prnt(traceback.format_exc())
             return check_result.gen(query, deezer_result, music_type=music_type)
 
 class data_check:
