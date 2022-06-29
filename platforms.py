@@ -157,6 +157,7 @@ class deezer_platform:
             except Exception:
                 pass
             if(seperate):
+                if("title" not in result_item): return False
                 artist = result_item['artist']['name']
                 if(featured_artists):
                     if("contributors" not in result_item):
