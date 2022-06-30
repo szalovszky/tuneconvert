@@ -21,6 +21,7 @@ import time
 import platform
 import requests
 from datetime import datetime
+from packaging import version
 
 run_start = datetime.now()
 
@@ -29,11 +30,12 @@ import ffmpeg
 
 import constants
 from platforms import youtube_platform
-from utils import data, music_data, file, output, audio
+from utils import data, music_data, output, audio
 import settings
 from checks import deezer_check, startpage_check, duckduckgo_check, shazam_check, external_check, data_check
 import online
 import objects
+import update
 
 # TODO: Fix this
 # Supress Asyncio deprecation warning
@@ -45,6 +47,8 @@ history = []
 # Generate unique run ID
 run_id = str(int(time.time())).encode('utf-8') + str(''.join(random.choices(string.ascii_uppercase + string.digits, k=8))).encode('utf-8')
 run_id = data.hash(run_id)
+
+releases_api = f"https://api.github.com/repos/{__repo_author__}/{__repo__}/releases"
 
 settings.output_dir = "output/"
 settings.working_dir = f"{settings.output_dir}{run_id}/"
@@ -375,6 +379,13 @@ if __name__ == "__main__":
 
     settings.settings = args
     settings.srv_version = __srv_version__
+
+    latest_update = update.get_latest(releases_api_url=releases_api)
+    if(version.parse(__version__) < version.parse(latest_update[0])):
+        data.prnt(f"{'-'*48}\n⬆️  Update available!: {latest_update[1]}\n(current: {__version__}, newest: {latest_update[0]})\n{'-'*48}\n")
+    elif(version.parse(__version__) > version.parse(latest_update[0])):
+        data.prnt(f"{'-'*48}\nYou are running a Development Version!\n{'-'*48}\n")
+
     if(settings.settings.opt_out): submission_user_agent += "/opt-out"
     online.headers = {'User-Agent': submission_user_agent}
 
@@ -438,6 +449,7 @@ if __name__ == "__main__":
     dict_settings['author'] = __author__
     dict_settings['version'] = __version__
     dict_settings['srv-version'] = __srv_version__
+    dict_settings['repo'] = f"{__repo_author__}/{__repo__}"
     file_options.write(json.dumps(dict_settings))
 
     # Output result
