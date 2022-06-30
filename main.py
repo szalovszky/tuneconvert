@@ -334,6 +334,7 @@ def handle_youtube(url):
 
                 # Loops entries to grab each video
                 for i, item in enumerate(video):
+                    if(settings.settings.initial_start_index > i): continue
                     video = result['entries'][i]
                     handle_youtube_result(video, i)
             else:
@@ -366,6 +367,8 @@ if __name__ == "__main__":
 
     # Misc.
     parser.add_argument("--hook", default=False, help="Special argument", action='store_true')
+
+    parser.add_argument("--initial-start-index", "-i", type=int, default=0, help="Initial starting index in when source is a playlist")
 
     parser.add_argument("--no-cut", default=False, help="Don't cut silence out of the cached audio files", action='store_true')
 
