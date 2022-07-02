@@ -105,6 +105,7 @@ class music_data:
             brackets.append(re.findall('\((.*?)\)', title))
             brackets.append(re.findall('\[(.*?)\]', title))
             brackets.append(re.findall('\|(.*?)\|', title))
+            brackets.append(re.findall('\{(.*?)\}', title))
             
             # Merge list
             brackets = [j for i in brackets for j in i]
@@ -119,11 +120,12 @@ class music_data:
                     if any(trigger in info for trigger in constants.REMIX_OR_COVER_OR_INSTRUMENTAL_triggers):
                         title_extra_info += f" {info}"
 
-        # Remove unnecessary information between "()"s, "[]"s, "||"s and "\\"s (ex. Official Music Video)
+        # Remove unnecessary information between "()"s, "[]"s, "||"s, "\\"s and "{}"s (ex. Official Music Video)
         title = re.sub(r'\([\s\S]*\)', '', title)
         title = re.sub(r'\[[\s\S]*\]', '', title)
         title = re.sub(r'\|[\s\S]*\|', '', title)
         title = re.sub(r'\\[\s\S]*\\', '', title)
+        title = re.sub(r'\{[\s\S]*\}', '', title)
 
         # Re-add extra info to title
         title += title_extra_info
