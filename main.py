@@ -154,6 +154,7 @@ def add_result(source, results, result, no_scoring=False):
     return results
 
 
+now = 0
 total = 1
 success = 0
 not_found = 0
@@ -241,24 +242,26 @@ def handle(source, result, submit=True):
 
 
 def handle_youtube_result(video, i=0):
-    global total, online_found, json_index
+    global now, total, online_found, json_index
+    now += 1
     try:
         if(video is None):
             data.hookout(type="error", message="video_not_found")
-            data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {constants.colors.FAIL}NOT FOUND{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+            data.prnt(f"\n{constants.colors.BOLD}=== [{now} of {total}] {constants.colors.FAIL}NOT FOUND{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
             file_fail.write(f"fatalerror:{i}\n")
             file_overview.write(output.table_row(status="Video not found"))
         else:
             music_type = music_data.detect_type(video['title'], video['duration'])
             source = objects.music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, music_type=music_type), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}", length=video['duration'], type=music_type)
             if(source.link in history):
-                data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {constants.colors.FAIL}DUPLICATE, SKIPPING{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+                data.prnt(f"\n{constants.colors.BOLD}=== [{now} of {total}] {constants.colors.FAIL}DUPLICATE, SKIPPING{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+                now -= 1
                 total -= 1
                 return False
             else:
                 history.append(source.link)
             data.hookout(type="status", status="checking", message=source.name)
-            data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {source.name} ==={constants.colors.ENDC}")
+            data.prnt(f"\n{constants.colors.BOLD}=== [{now} of {total}] {source.name} ==={constants.colors.ENDC}")
             source.filename = f"{settings.temp_dir}audio.wav"
 
             online_result = online.get_song(source, settings.submitter_obj)
@@ -297,7 +300,7 @@ def handle_youtube_result(video, i=0):
 
             if(os.path.exists(source.filename)):
                 os.remove(source.filename)
-        data.hookout(type="progress", now=i+1, total=total, not_found=not_found, online_found=online_found)
+        data.hookout(type="progress", now=now, total=total, not_found=not_found, online_found=online_found)
     except Exception as e:
         try:
             data.prnt("[ERROR] Handling error at index " + str(i))
