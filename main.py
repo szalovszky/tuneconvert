@@ -1,8 +1,8 @@
 #!/bin/python
 __appname__ = "tuneconvert"
 __repo__ = __appname__
-__version__ = "0.2.2"
-__int_version__ = 22
+__version__ = "0.2.3"
+__int_version__ = 23
 __srv_version__ = "1.0"
 __repo_author__ = "szalovszky"
 __author__ = "Szalovszky David"
@@ -277,7 +277,7 @@ def handle_youtube_result(video, i=0):
                 handle(source, result, submit=False)
             else:
                 youtube_platform.download(f"https://youtu.be/{video['id']}", source.filename)
-                if(not settings.settings.no_cut):
+                if(settings.settings.cut):
                     audio.cut_leading_silence(source.filename)
                 source.length = float(ffmpeg.probe(source.filename)['format']['duration']).__floor__()
                 # Search by metadata
@@ -373,7 +373,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--initial-start-index", "-i", type=int, default=0, help="Initial starting index in when source is a playlist")
 
-    parser.add_argument("--no-cut", default=False, help="Don't cut silence out of the cached audio files", action='store_true')
+    parser.add_argument("--cut", default=False, help="Cut silence out of the cached audio files (unstable)", action='store_true')
 
     parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
 
