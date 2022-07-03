@@ -1,8 +1,10 @@
 #!/bin/python
 __appname__ = "tuneconvert"
-__version__ = "0.2.1"
-__int_version__ = 21
+__repo__ = __appname__
+__version__ = "0.2.2"
+__int_version__ = 22
 __srv_version__ = "1.0"
+__repo_author__ = "szalovszky"
 __author__ = "Szalovszky David"
 
 import random
@@ -19,6 +21,7 @@ import time
 import platform
 import requests
 from datetime import datetime
+from packaging import version
 
 run_start = datetime.now()
 
@@ -27,11 +30,12 @@ import ffmpeg
 
 import constants
 from platforms import youtube_platform
-from utils import data, music_data, file, output, audio
+from utils import data, music_data, output, audio
 import settings
 from checks import deezer_check, startpage_check, duckduckgo_check, shazam_check, external_check, data_check
 import online
 import objects
+import update
 
 # TODO: Fix this
 # Supress Asyncio deprecation warning
@@ -43,6 +47,8 @@ history = []
 # Generate unique run ID
 run_id = str(int(time.time())).encode('utf-8') + str(''.join(random.choices(string.ascii_uppercase + string.digits, k=8))).encode('utf-8')
 run_id = data.hash(run_id)
+
+releases_api = f"https://api.github.com/repos/{__repo_author__}/{__repo__}/releases"
 
 settings.output_dir = "output/"
 settings.working_dir = f"{settings.output_dir}{run_id}/"
@@ -148,6 +154,7 @@ def add_result(source, results, result, no_scoring=False):
     return results
 
 
+now = 0
 total = 1
 success = 0
 not_found = 0
@@ -235,24 +242,26 @@ def handle(source, result, submit=True):
 
 
 def handle_youtube_result(video, i=0):
-    global total, online_found, json_index
+    global now, total, online_found, json_index
+    now += 1
     try:
         if(video is None):
             data.hookout(type="error", message="video_not_found")
-            data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {constants.colors.FAIL}NOT FOUND{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+            data.prnt(f"\n{constants.colors.BOLD}=== [{now} of {total}] {constants.colors.FAIL}NOT FOUND{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
             file_fail.write(f"fatalerror:{i}\n")
             file_overview.write(output.table_row(status="Video not found"))
         else:
             music_type = music_data.detect_type(video['title'], video['duration'])
             source = objects.music(name=video['title'], title=youtube_platform.parse(video, youtube_platform.parse_method.DEFAULT, music_type=music_type), description=video['description'], id=video['id'], link=f"https://youtu.be/{video['id']}", length=video['duration'], type=music_type)
             if(source.link in history):
-                data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {constants.colors.FAIL}DUPLICATE, SKIPPING{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+                data.prnt(f"\n{constants.colors.BOLD}=== [{now} of {total}] {constants.colors.FAIL}DUPLICATE, SKIPPING{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+                now -= 1
                 total -= 1
                 return False
             else:
                 history.append(source.link)
             data.hookout(type="status", status="checking", message=source.name)
-            data.prnt(f"\n{constants.colors.BOLD}=== [{i+1} of {total}] {source.name} ==={constants.colors.ENDC}")
+            data.prnt(f"\n{constants.colors.BOLD}=== [{now} of {total}] {source.name} ==={constants.colors.ENDC}")
             source.filename = f"{settings.temp_dir}audio.wav"
 
             online_result = online.get_song(source, settings.submitter_obj)
@@ -291,7 +300,7 @@ def handle_youtube_result(video, i=0):
 
             if(os.path.exists(source.filename)):
                 os.remove(source.filename)
-        data.hookout(type="progress", now=i+1, total=total, not_found=not_found, online_found=online_found)
+        data.hookout(type="progress", now=now, total=total, not_found=not_found, online_found=online_found)
     except Exception as e:
         try:
             data.prnt("[ERROR] Handling error at index " + str(i))
@@ -328,6 +337,7 @@ def handle_youtube(url):
 
                 # Loops entries to grab each video
                 for i, item in enumerate(video):
+                    if(settings.settings.initial_start_index > i): continue
                     video = result['entries'][i]
                     handle_youtube_result(video, i)
             else:
@@ -361,6 +371,8 @@ if __name__ == "__main__":
     # Misc.
     parser.add_argument("--hook", default=False, help="Special argument", action='store_true')
 
+    parser.add_argument("--initial-start-index", "-i", type=int, default=0, help="Initial starting index in when source is a playlist")
+
     parser.add_argument("--no-cut", default=False, help="Don't cut silence out of the cached audio files", action='store_true')
 
     parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
@@ -373,6 +385,13 @@ if __name__ == "__main__":
 
     settings.settings = args
     settings.srv_version = __srv_version__
+
+    latest_update = update.get_latest(releases_api_url=releases_api)
+    if(version.parse(__version__) < version.parse(latest_update[0])):
+        data.prnt(f"{'-'*48}\n⬆️  Update available!: {latest_update[1]}\n(current: {__version__}, newest: {latest_update[0]})\n{'-'*48}\n")
+    elif(version.parse(__version__) > version.parse(latest_update[0])):
+        data.prnt(f"{'-'*48}\nYou are running a Development Version!\n{'-'*48}\n")
+
     if(settings.settings.opt_out): submission_user_agent += "/opt-out"
     online.headers = {'User-Agent': submission_user_agent}
 
@@ -436,6 +455,7 @@ if __name__ == "__main__":
     dict_settings['author'] = __author__
     dict_settings['version'] = __version__
     dict_settings['srv-version'] = __srv_version__
+    dict_settings['repo'] = f"{__repo_author__}/{__repo__}"
     file_options.write(json.dumps(dict_settings))
 
     # Output result
