@@ -405,13 +405,14 @@ def handle_search(url):
     data.hookout(type="status", status="fetching")
     data.hookout(type="status", status="parsing")
     if(url.startswith(constants.file_pointer)):
-        queries = open(url[len(constants.file_pointer):], 'r')
-        queries = queries.readlines()
+        queries_stream = open(url[len(constants.file_pointer):], 'r')
+        queries = queries_stream.readlines()
+        queries_stream.close()
         total = len(queries)
         for i, query in enumerate(queries):
-            handle_search_result(query, i)
+            handle_search_result(query.strip(), i)
     else:
-        handle_search_result(query=url)
+        handle_search_result(query=url.strip())
     
 
 if __name__ == "__main__":
