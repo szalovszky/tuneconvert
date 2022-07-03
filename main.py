@@ -321,10 +321,9 @@ def handle_youtube_result(video, i=0):
                 output.table_row(status="Handling error", original_title=f"Index: {str(i)}"))
 
 
-def handle_search_result(query):
+def handle_search_result(query, i=0):
     global now, total, online_found, json_index
-    i = 0
-    now = 1
+    now += 1
     try:
         source = objects.music(name=query, title=music_data.filter_data(artist="", title=query, music_type=objects.music.type.DEFAULT), link=query)
         if(source.link in history):
@@ -378,7 +377,7 @@ def handle_search_result(query):
 
 
 def handle_youtube(url):
-    global success, not_found, total
+    global total
     info_logger_instance = info_logger()
     ydl = yt_dlp.YoutubeDL({"ignoreerrors": True, 'logger': info_logger_instance})
     with ydl:
@@ -401,11 +400,18 @@ def handle_youtube(url):
                 handle_youtube_result(video)
 
 
-def handle_search(query):
+def handle_search(url):
     global success, not_found, total
     data.hookout(type="status", status="fetching")
     data.hookout(type="status", status="parsing")
-    handle_search_result(query)
+    if(url.startswith(constants.file_pointer)):
+        queries = open(url[len(constants.file_pointer):], 'r')
+        queries = queries.readlines()
+        total = len(queries)
+        for i, query in enumerate(queries):
+            handle_search_result(query, i)
+    else:
+        handle_search_result(query=url)
     
 
 if __name__ == "__main__":
@@ -510,7 +516,7 @@ if __name__ == "__main__":
     else:
         data.prnt(f"Searching {url}...")
         data.hookout(type="source_platform", platform="query")
-        handle_search(query=url)
+        handle_search(url)
         sys.exit()
 
     # Write options to file
