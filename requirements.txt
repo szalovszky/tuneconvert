@@ -1,4 +1,4 @@
-yt-dlp==2022.6.29
+yt-dlp==2022.8.8
 deezer-python==5.3.3
 shazamio==0.2.0.0
 requests==2.28.1
