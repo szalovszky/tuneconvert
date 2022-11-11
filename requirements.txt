@@ -1,5 +1,5 @@
 yt-dlp==2022.6.29
-deezer-python==5.3.3
+deezer-python==5.7.0
 shazamio==0.2.0.0
 requests==2.28.1
 ffmpeg-python==0.2.0
