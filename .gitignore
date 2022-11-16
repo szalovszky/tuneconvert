@@ -542,3 +542,4 @@ audio*
 test.py
 .vscode/settings.json
 .terms
+*.txt

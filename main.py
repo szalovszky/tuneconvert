@@ -1,8 +1,8 @@
 #!/bin/python
 __appname__ = "tuneconvert"
 __repo__ = __appname__
-__version__ = "0.2.2"
-__int_version__ = 22
+__version__ = "0.2.3"
+__int_version__ = 23
 __srv_version__ = "1.0"
 __repo_author__ = "szalovszky"
 __author__ = "Szalovszky David"
@@ -223,7 +223,7 @@ def handle(source, result, submit=True):
         result = objects.music(title=f"{(result['result'][1]['artist']['name'] + ' - ') if ('artist' in result['result'][1]) else ''}{result['result'][1]['title']}", link=result['result'][1]['link'], id=result['result'][1]['id'], isrc=isrc, type=source.type)
         data.prnt(f"[SUCCESS] [{(score + 'pts') if raw_score > 0.0 else 'Online'}] {result.title}")
         success += 1
-        data.hookout(type="status", status="found")
+        data.hookout(type="status", status="found", result=result.link)
         add_to_json(status="found", score=score, original=source.link, found=result.link, music_type=objects.music.type.list[source.type])
         file_output.write(f"{result.link}\n")
         file_overview.write(
@@ -231,6 +231,7 @@ def handle(source, result, submit=True):
         if(submit): online.submit_result(source, result, settings.submitter_obj)
     else:
         data.prnt(f"[ERROR] Not found {source.name}")
+        data.hookout(type="status", status="not-found", source=source.link)
         not_found += 1
         result = source
         file_fail.write(f"notfound:{source.link}\n")
@@ -277,7 +278,7 @@ def handle_youtube_result(video, i=0):
                 handle(source, result, submit=False)
             else:
                 youtube_platform.download(f"https://youtu.be/{video['id']}", source.filename)
-                if(not settings.settings.no_cut):
+                if(settings.settings.cut):
                     audio.cut_leading_silence(source.filename)
                 source.length = float(ffmpeg.probe(source.filename)['format']['duration']).__floor__()
                 # Search by metadata
@@ -320,9 +321,63 @@ def handle_youtube_result(video, i=0):
                 output.table_row(status="Handling error", original_title=f"Index: {str(i)}"))
 
 
+def handle_search_result(query, i=0):
+    global now, total, online_found, json_index
+    now += 1
+    try:
+        source = objects.music(name=query, title=music_data.filter_data(artist="", title=query, music_type=objects.music.type.DEFAULT), link=query)
+        if(source.link in history):
+            data.prnt(f"\n{constants.colors.BOLD}=== [{now} of {total}] {constants.colors.FAIL}DUPLICATE, SKIPPING{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+            now -= 1
+            total -= 1
+            return False
+        else:
+            history.append(source.link)
+        data.hookout(type="status", status="checking", message=source.name)
+        data.prnt(f"\n{constants.colors.BOLD}=== [{now} of {total}] {source.name} ==={constants.colors.ENDC}")
+
+        online_result = online.get_song(source, settings.submitter_obj)
+        is_online = (online_result != None)
+        is_online = is_online and (online_result['song'] != None)
+        if(is_online):
+            data.prnt("✅  Found result on Tuneconvert Online!")
+            result = online_result['song']
+            online_found += 1
+            # I know this is a crappy solution
+            result['score'] = -1.0
+            result['result'] = [-1.0, online_result['song']]
+            handle(source, result, submit=False)
+        else:
+            # Search by query
+            by_query = find(source=source, only_metadata=True)
+            
+            result = rank_find(query=source.title, by_query=by_query)
+            handle(source, result)
+
+        if(os.path.exists(source.filename)):
+            os.remove(source.filename)
+        data.hookout(type="progress", now=now, total=total, not_found=not_found, online_found=online_found)
+    except Exception as e:
+        try:
+            data.prnt("[ERROR] Handling error at index " + str(i))
+            data.prnt(traceback.format_exc())
+            file_fail.write("handleerror:" + str(i) + "\n")
+            data.hookout(type="error", message="handling_error")
+
+            # Catch if source isn't referenced yet
+            source.link = source.link
+
+            add_to_json(status="handle_error", original=source.link, index=i)
+            file_overview.write(
+                output.table_row(status="Handling error", original=source.link, original_title=source.name))
+        except Exception:
+            add_to_json(status="handle_error", index=i)
+            file_overview.write(
+                output.table_row(status="Handling error", original_title=f"Index: {str(i)}"))
+
+
 def handle_youtube(url):
-    global success, not_found, total
-    global loop
+    global total
     info_logger_instance = info_logger()
     ydl = yt_dlp.YoutubeDL({"ignoreerrors": True, 'logger': info_logger_instance})
     with ydl:
@@ -344,6 +399,21 @@ def handle_youtube(url):
                 video = result
                 handle_youtube_result(video)
 
+
+def handle_search(url):
+    global success, not_found, total
+    data.hookout(type="status", status="fetching")
+    data.hookout(type="status", status="parsing")
+    if(url.startswith(constants.file_pointer)):
+        queries_stream = open(url[len(constants.file_pointer):], 'r')
+        queries = queries_stream.readlines()
+        queries_stream.close()
+        total = len(queries)
+        for i, query in enumerate(queries):
+            handle_search_result(query.strip(), i)
+    else:
+        handle_search_result(query=url.strip())
+    
 
 if __name__ == "__main__":
     # Add arguments
@@ -373,7 +443,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--initial-start-index", "-i", type=int, default=0, help="Initial starting index in when source is a playlist")
 
-    parser.add_argument("--no-cut", default=False, help="Don't cut silence out of the cached audio files", action='store_true')
+    parser.add_argument("--cut", default=False, help="Cut silence out of the cached audio files (unstable)", action='store_true')
 
     parser.add_argument("--force-mix-as-singular", "--force-mix", "--force-album-as-singular", "--force-album", default=False, help="Parse detected mix or album as a singular song (legacy parsing method)", action='store_true')
 
@@ -445,8 +515,9 @@ if __name__ == "__main__":
         data.hookout(type="source_platform", platform="youtube")
         handle_youtube(url)
     else:
-        data.prnt("Unsupported source platform")
-        data.hookout(type="source_platform", platform="")
+        data.prnt(f"Searching {url}...")
+        data.hookout(type="source_platform", platform="query")
+        handle_search(url)
         sys.exit()
 
     # Write options to file
