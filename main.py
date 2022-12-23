@@ -1,8 +1,8 @@
 #!/bin/python
 __appname__ = "tuneconvert"
 __repo__ = __appname__
-__version__ = "0.2.3"
-__int_version__ = 23
+__version__ = "0.2.4"
+__int_version__ = 24
 __srv_version__ = "1.0"
 __repo_author__ = "szalovszky"
 __author__ = "Szalovszky David"
