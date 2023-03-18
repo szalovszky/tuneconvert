@@ -12,8 +12,8 @@ isrc_pointer = "isrc:"
 api = "https://api.szalovszky.com/tuneconvert/"
 
 dontneed = [
-    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶",
-    "music video", "videoclip", "videoklip", "prod", "version", "album",
+    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "#", "│", "▶",
+    "music video", "videoclip", "videoklip", "prod", "version", "album", "audio",
     "official", "hivatalos", "radio edit", "full song", "- edit",
     "lyrics", "lyric", "dalszöveg", "dirty", "explicit",
 ]
