@@ -1,6 +1,6 @@
 yt-dlp==2023.2.17
 deezer-python==5.3.3
-shazamio==0.2.0.0
+shazamio==0.3.1.1
 requests==2.28.1
 ffmpeg-python==0.2.0
 beautifulsoup4==4.11.1
