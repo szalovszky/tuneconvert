@@ -7,6 +7,7 @@ length_weight = 0.5
 license_file_name = ".terms"
 
 file_pointer = "file://"
+isrc_pointer = "isrc:"
 
 api = "https://api.szalovszky.com/tuneconvert/"
 
