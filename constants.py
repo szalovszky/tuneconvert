@@ -8,7 +8,7 @@ license_file_name = ".terms"
 
 file_pointer = "file://"
 
-api = "http://api.szalovszky.com/tuneconvert/"
+api = "https://api.szalovszky.com/tuneconvert/"
 
 dontneed = [
     "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶",
