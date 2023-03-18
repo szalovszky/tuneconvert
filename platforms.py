@@ -399,7 +399,7 @@ class youtube_platform:
                 'key': 'ModifyChapters',
                 'remove_sponsor_segments': ['music_offtopic']
             }],
-            'outtmpl': path,
+            'outtmpl': path.replace('.wav', ''),
             'logger': settings.download_logger,
             "ignoreerrors": True,
         }
