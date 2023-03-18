@@ -176,7 +176,7 @@ class deezer_platform:
                     artist = ' '.join(data.unique_list(artist_sum.split()))
                 artist_filtered = music_data.filter_data(artist, "", music_type=music_type)[0]
                 title_filtered = music_data.filter_data("", result_item['title'], music_type=music_type)[1]
-                if("karaoke" in result_item['title'].lower()):
+                if("karaoke" in result_item['title'].lower() or "originally performed" in result_item['title'].lower()):
                     return False
                 artist_certainty = data.similar(query[0], artist_filtered)
                 title_certainty = data.similar(query[1], title_filtered)
@@ -189,7 +189,7 @@ class deezer_platform:
                     return [certainty, result_item]
             else:
                 result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], music_type=music_type))
-                if("karaoke" in result_item['title'].lower()):
+                if("karaoke" in result_item['title'].lower() or "originally performed" in result_item['title'].lower()):
                     return False
                 certainty = data.similar(query, result_filtered)
                 if(certainty < constants.similarity_threshold):
@@ -223,7 +223,7 @@ class deezer_platform:
                                 artist = ' '.join(data.unique_list(artist_sum.split()))
                             artist_filtered = music_data.filter_data(artist, "", music_type=music_type)[0]
                             title_filtered = music_data.filter_data("", result_item['title'], music_type=music_type)[1]
-                            if("karaoke" in result_item['title'].lower()):
+                            if("karaoke" in result_item['title'].lower() or "originally performed" in result_item['title'].lower()):
                                 pass
                             artist_certainty = data.similar(query[0], artist_filtered)
                             title_certainty = data.similar(query[1], title_filtered)
@@ -236,7 +236,7 @@ class deezer_platform:
                                     most_certain = [result_item, artist_certainty, title_certainty]
                         else:
                             result_filtered = " ".join(music_data.filter_data(result_item['artist']['name'], result_item['title'], music_type=music_type))
-                            if("karaoke" in result_item['title'].lower()):
+                            if("karaoke" in result_item['title'].lower() or "originally performed" in result_item['title'].lower()):
                                 pass
                             certainty = data.similar(query, result_filtered)
                             if(certainty < constants.similarity_threshold):
@@ -399,7 +399,7 @@ class youtube_platform:
                 'key': 'ModifyChapters',
                 'remove_sponsor_segments': ['music_offtopic']
             }],
-            'outtmpl': path,
+            'outtmpl': path.replace('.wav', ''),
             'logger': settings.download_logger,
             "ignoreerrors": True,
         }
