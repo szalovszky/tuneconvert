@@ -1,8 +1,8 @@
 #!/bin/python
 __appname__ = "tuneconvert"
 __repo__ = __appname__
-__version__ = "0.2.3"
-__int_version__ = 23
+__version__ = "0.2.4"
+__int_version__ = 24
 __srv_version__ = "1.0"
 __repo_author__ = "szalovszky"
 __author__ = "Szalovszky David"
@@ -221,7 +221,7 @@ def handle(source, result, submit=True):
         else:
             isrc = ""
         result = objects.music(title=f"{(result['result'][1]['artist']['name'] + ' - ') if ('artist' in result['result'][1]) else ''}{result['result'][1]['title']}", link=result['result'][1]['link'], id=result['result'][1]['id'], isrc=isrc, type=source.type)
-        data.prnt(f"[SUCCESS] [{(score + 'pts') if raw_score > 0.0 else 'Online'}] {result.title}")
+        data.prnt(f"[SUCCESS] [{(score + 'pts') if raw_score > 0.0 else 'Verified'}] {result.title}")
         success += 1
         data.hookout(type="status", status="found", result=result.link)
         add_to_json(status="found", score=score, original=source.link, found=result.link, music_type=objects.music.type.list[source.type])
@@ -321,6 +321,59 @@ def handle_youtube_result(video, i=0):
                 output.table_row(status="Handling error", original_title=f"Index: {str(i)}"))
 
 
+def handle_isrc_result(isrc, i=0):
+    global now, total, online_found, json_index
+    now += 1
+    try:
+        source = objects.music(name=isrc, title=isrc, link=isrc, isrc=isrc)
+        if(source.link in history):
+            data.prnt(f"\n{constants.colors.BOLD}=== [{now} of {total}] {constants.colors.FAIL}DUPLICATE, SKIPPING{constants.colors.ENDC}{constants.colors.BOLD} ==={constants.colors.ENDC}")
+            now -= 1
+            total -= 1
+            return False
+        else:
+            history.append(source.link)
+        data.hookout(type="status", status="checking", message=source.name)
+        data.prnt(f"\n{constants.colors.BOLD}=== [{now} of {total}] {source.name} ==={constants.colors.ENDC}")
+
+        online_result = online.get_song(source, settings.submitter_obj)
+        is_online = (online_result != None)
+        is_online = is_online and (online_result['song'] != None)
+        if(is_online):
+            data.prnt("✅  Found result on Tuneconvert Online!")
+            result = online_result['song']
+            online_found += 1
+            # I know this is a crappy solution
+            result['score'] = -1.0
+            result['result'] = [-1.0, online_result['song']]
+            handle(source, result, submit=False)
+        else:
+            # Match result by ISRC
+            result = deezer_check.isrc(source.isrc)
+            handle(source, result)
+
+        if(os.path.exists(source.filename)):
+            os.remove(source.filename)
+        data.hookout(type="progress", now=now, total=total, not_found=not_found, online_found=online_found)
+    except Exception as e:
+        try:
+            data.prnt("[ERROR] Handling error at index " + str(i))
+            data.prnt(traceback.format_exc())
+            file_fail.write("handleerror:" + str(i) + "\n")
+            data.hookout(type="error", message="handling_error")
+
+            # Catch if source isn't referenced yet
+            source.link = source.link
+
+            add_to_json(status="handle_error", original=source.link, index=i)
+            file_overview.write(
+                output.table_row(status="Handling error", original=source.link, original_title=source.name))
+        except Exception:
+            add_to_json(status="handle_error", index=i)
+            file_overview.write(
+                output.table_row(status="Handling error", original_title=f"Index: {str(i)}"))
+
+
 def handle_search_result(query, i=0):
     global now, total, online_found, json_index
     now += 1
@@ -399,6 +452,20 @@ def handle_youtube(url):
                 video = result
                 handle_youtube_result(video)
 
+def handle_isrc(url):
+    global success, not_found, total
+    data.hookout(type="status", status="fetching")
+    data.hookout(type="status", status="parsing")
+    url = url.replace(constants.isrc_pointer, '')
+    if(url.startswith(constants.file_pointer)):
+        isrcs_stream = open(url[len(constants.file_pointer):], 'r')
+        isrcs = isrcs_stream.readlines()
+        isrcs_stream.close()
+        total = len(isrcs)
+        for i, isrc in enumerate(isrcs):
+            handle_isrc_result(isrc.strip(), i)
+    else:
+        handle_isrc_result(url.strip().replace(constants.isrc_pointer, ''))
 
 def handle_search(url):
     global success, not_found, total
@@ -514,11 +581,13 @@ if __name__ == "__main__":
     if("youtu" in url):
         data.hookout(type="source_platform", platform="youtube")
         handle_youtube(url)
+    elif(constants.isrc_pointer in url):
+        data.hookout(type="source_platform", platform="isrc")
+        handle_isrc(url)
     else:
         data.prnt(f"Searching {url}...")
         data.hookout(type="source_platform", platform="query")
         handle_search(url)
-        sys.exit()
 
     # Write options to file
     dict_settings = settings.settings.__dict__

@@ -42,6 +42,14 @@ class deezer_check:
             deezer_result = deezer_platform.search_album(query)
             return check_result.gen(query, deezer_result, music_type=music_type)
 
+    def isrc(isrc):
+        if(not settings.settings.no_deezertrack):
+            data.hookout(type="status", status="check", check=data.get_caller(__class__))
+            deezer_result = deezer_platform.isrc(isrc)
+            if(deezer_result is None): return None
+            result_item = [0.0, deezer_result.as_dict()]
+            return check_result(id=data.hash(str(result_item)), score=-1.0, result=result_item).__dict__
+
 class startpage_check:
     def search(query, music_type=objects.music.type.DEFAULT):
         if(not settings.settings.no_startpage):

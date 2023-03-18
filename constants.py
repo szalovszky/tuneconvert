@@ -7,12 +7,13 @@ length_weight = 0.5
 license_file_name = ".terms"
 
 file_pointer = "file://"
+isrc_pointer = "isrc:"
 
-api = "http://api.szalovszky.com/tuneconvert/"
+api = "https://api.szalovszky.com/tuneconvert/"
 
 dontneed = [
-    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "│", "▶",
-    "music video", "videoclip", "videoklip", "prod", "version", "album",
+    "(", ")", "/", "-", ".", "&", "[", "]", ":", "|", '"', "!", "?", "#", "│", "▶",
+    "music video", "videoclip", "videoklip", "prod", "version", "album", "audio",
     "official", "hivatalos", "radio edit", "full song", "- edit",
     "lyrics", "lyric", "dalszöveg", "dirty", "explicit",
 ]
