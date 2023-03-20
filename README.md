@@ -24,4 +24,4 @@ python main.py <SourceURL> <DestinationPlatform>
 ```
 
 ## Usage
-Read more [on the wiki](https://github.com/szalovszky/tuneconvert/wiki)
+Read more [on the wiki](https://github.com/szalovszky/tuneconvert/wiki/Usage)
