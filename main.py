@@ -168,7 +168,7 @@ def find(source, only_metadata=False):
         data.prnt("[WARN] Skipping mix or album... (not yet supported)")
     else:
         if((settings.settings.force_mix_as_singular) and (source.type == objects.music.type.MIX_OR_ALBUM)):
-            data.prnt("[WARN] Forcing detected mix or album as a singular song. This may cause unaccurate results")
+            data.prnt("[WARN] Forcing detected mix or album as a singular song. This may cause inaccurate results")
         add_result(source, results, deezer_check.track(source.title, is_remix))
         add_result(source, results, startpage_check.search(source.title, is_remix))
         add_result(source, results, deezer_check.album(source.title, is_remix))
