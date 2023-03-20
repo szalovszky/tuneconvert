@@ -103,7 +103,7 @@ class deezer_platform:
         while(not success):
             try:
                 # I know this can be done fully by RegEx, but I can't into RegEx
-                id = re.sub(r'(?<=https://www.deezer.com/).*(?=/track/)', '', url).replace("https://www.deezer.com//track/", "")
+                id = re.sub(r'(?<=https://www\.deezer\.com/).*(?=/track/)', '', url).replace("https://www.deezer.com//track/", "")
                 res = platforms.deezer_platform.deezer_client.request("GET", "track/" + id, resource_type=deezer.Track)
                 success = True
             except Exception as e:
